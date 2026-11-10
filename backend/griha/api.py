@@ -62,8 +62,11 @@ async def lifespan(app: FastAPI):
     await _init_orchestrator()
     await _rehydrate()
     ref_task = asyncio.create_task(asyncio.to_thread(lambda: STATE.__setitem__("drift_ref", drift.build_reference(eng))))
+    warm_task = asyncio.create_task(asyncio.to_thread(_portfolio_base)) if os.getenv("GRIHA_WARM_IMPACT", "1") == "1" else None   # so the first visitor does not wait for the 1,000-case replay
     yield
     ref_task.cancel()
+    if warm_task:
+        warm_task.cancel()
     if STATE.get("worker"):
         await STATE["worker"].shutdown()
 
