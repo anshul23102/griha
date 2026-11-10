@@ -40,6 +40,6 @@ jobs:
       - run: docker build -t griha .
       - name: Container starts and answers
         run: |
-          docker run -d --name g -p 7860:7860 griha
+          docker run -d --name griha-ci -p 7860:7860 griha
           for i in $(seq 1 30); do curl -sf localhost:7860/api/health && exit 0; sleep 2; done
-          docker logs g; exit 1
+          docker logs griha-ci; exit 1
