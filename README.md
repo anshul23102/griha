@@ -31,24 +31,23 @@ Home Loan and Loan Against Property decisions in milliseconds: **approve, reject
 
 1. [Why Griha](#why-griha)
 2. [What it does](#what-it-does)
-3. [Screenshots](#screenshots)
-4. [Architecture](#architecture)
-5. [Quick start](#quick-start)
-6. [Configuration](#configuration)
-7. [How one decision is made](#how-one-decision-is-made)
-8. [The risk model, and evidence outside our own generator](#the-risk-model-and-evidence-outside-our-own-generator)
-9. [Regulatory coverage](#regulatory-coverage)
-10. [Security and privacy](#security-and-privacy)
-11. [Observability and scale](#observability-and-scale)
-12. [API reference](#api-reference)
-13. [Testing and CI](#testing-and-ci)
-14. [Deployment](#deployment)
-15. [Repository layout](#repository-layout)
-16. [Hackathon requirements, mapped](#hackathon-requirements-mapped)
-17. [What is real, what is simulated, what is not built](#what-is-real-what-is-simulated-what-is-not-built)
-18. [Honest limits](#honest-limits)
-19. [Data sources and licences](#data-sources-and-licences)
-20. [Contributing, security reports, licence](#contributing-security-reports-licence)
+3. [Architecture](#architecture)
+4. [Quick start](#quick-start)
+5. [Configuration](#configuration)
+6. [How one decision is made](#how-one-decision-is-made)
+7. [The risk model, and evidence outside our own generator](#the-risk-model-and-evidence-outside-our-own-generator)
+8. [Regulatory coverage](#regulatory-coverage)
+9. [Security and privacy](#security-and-privacy)
+10. [Observability and scale](#observability-and-scale)
+11. [API reference](#api-reference)
+12. [Testing and CI](#testing-and-ci)
+13. [Deployment](#deployment)
+14. [Repository layout](#repository-layout)
+15. [Hackathon requirements, mapped](#hackathon-requirements-mapped)
+16. [What is real, what is simulated, what is not built](#what-is-real-what-is-simulated-what-is-not-built)
+17. [Honest limits](#honest-limits)
+18. [Data sources and licences](#data-sources-and-licences)
+19. [Contributing, security reports, licence](#contributing-security-reports-licence)
 
 ---
 
@@ -81,31 +80,6 @@ Griha is a working answer to one question: **can an underwriting engine be fast,
 | **Data rights** | Withdraw consent, access, correct, erase (DPDP), a retention hold where the KYC Directions require records, and a personal-data breach register with the 72-hour clock |
 | **Operations** | Temporal durable workflows, Prometheus metrics, a provisioned Grafana dashboard, an Operations page |
 | **Interface** | "The Reservation Chart" design: Indian Railways station signage, English and Hindi, night and day themes, keyboard navigation, accessibility-tested |
-
-## Screenshots
-
-<table>
-<tr>
-<td width="50%"><b>Decision with a private case link</b><br><img src="docs/img/case.png" alt="An approved case with the flap-board verdict, route strip of eight stations and loan terms"></td>
-<td width="50%"><b>Key Facts Statement, RBI Annex I format</b><br><img src="docs/img/kfs.png" alt="Key Facts Statement with proposal number, Part 1 and Part 2 tables"></td>
-</tr>
-<tr>
-<td><b>The same statement in Hindi</b><br><img src="docs/img/kfs-hi.png" alt="Key Facts Statement in Hindi"></td>
-<td><b>Lender desk, queues and four-eyes</b><br><img src="docs/img/desk.png" alt="Lender desk case chart"></td>
-</tr>
-<tr>
-<td><b>Governance: audit, model card, real-data check, breach register</b><br><img src="docs/img/governance.png" alt="Governance page"></td>
-<td><b>Policy Impact Simulator with fairness intervals</b><br><img src="docs/img/simulator.png" alt="Policy simulator results"></td>
-</tr>
-<tr>
-<td><b>Data sources: real figures with links, synthetic labelled</b><br><img src="docs/img/sources.png" alt="Data sources page"></td>
-<td><b>PS2 checklist: requirement, where it is shown, the honest limit</b><br><img src="docs/img/coverage.png" alt="Coverage checklist"></td>
-</tr>
-<tr>
-<td><b>Operations: Temporal, Prometheus, live numbers</b><br><img src="docs/img/ops.png" alt="Operations page"></td>
-<td><b>Phone width</b><br><img src="docs/img/mobile-case.png" alt="Case page on a phone" width="260"></td>
-</tr>
-</table>
 
 ## Architecture
 
