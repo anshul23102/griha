@@ -1,0 +1,59 @@
+# Griha credit policy v1: policy-as-code. Edit thresholds here; the engine hashes this file into every decision.
+# Thresholds marked (illustrative) are placeholders for the lender's real credit policy.
+version: "1.1.2"
+effective: "2026-11-01"
+params:
+  foir_cap: 0.55            # INTERNAL policy (no RBI limit found); max fixed-obligation-to-income at stress rate
+  min_loan: 300000
+  max_loan: 15000000
+  min_income: 15000
+  pd_approve_max: 0.080     # approve only if PD (and its upper bound) is below this
+  pd_reject_min: 0.250      # reject if even the lower bound of PD is above this
+  pd_uncertainty_factor: 1.6
+  fraud_refer_min: 0.50
+  income_inflation_ratio: 2.0
+  min_eligibility_ratio: 0.60
+  valuation_two_reports_from: 5000000        # RBI HFC Directions Annex V para 1.5: from Rs 50 lakh, two reports (one independent); the Board may lower this
+  valuation_two_independent_from: 7500000    # Annex V para 1.6: from Rs 75 lakh, two independent reports; the lower value is used
+ltv_caps:                   # HL tiers: RBI HFC Directions 2025 para 58 (verified against RBI text). LAP 0.60 is an INTERNAL limit: the Directions set no LTV cap for LAP.
+  HL:
+    - {up_to: 3000000, cap: 0.90}
+    - {up_to: 7500000, cap: 0.80}
+    - {up_to: null,    cap: 0.75}
+  LAP:
+    - {up_to: null,    cap: 0.60}
+tenure_cap_years: {HL: 30, LAP: 15}
+rules:
+  - {id: KYC_PAN,        title: "PAN verified",                    metric: pan_verified,   refer_if: {op: eq, value: false}, reason: "PAN could not be verified with the issuing authority: an officer checks and records the outcome (KYC Directions 2025 paras 17(10), 18)"}
+  - {id: KYC_AADHAAR,    title: "Aadhaar e-KYC verified",          metric: aadhaar_verified, refer_if: {op: eq, value: false}, reason: "Aadhaar e-KYC not completed. Aadhaar is voluntary (KYC Directions 2025 para 23, explanation 4), so an officer should accept another officially valid document"}
+  - {id: AML_SANCTIONS,  title: "Sanctions / watchlist screen",    metric: sanctions_hit,  refer_if: {op: eq, value: true},  reason: "Name closely matches an entry on the UN Security Council Consolidated List (or the demo fixture). A compliance officer confirms or clears it. Not disclosed to the applicant (KYC Directions 2025 paras 17(9), 19, 20(4), 52)"}
+  - {id: AGE_MIN,        title: "Minimum age 21",                  metric: age,            reject_if: {op: lt, value: 21},    reason: "Applicant is below the minimum age of 21"}
+  - {id: AGE_MATURITY,   title: "Age at maturity <= 70",           metric: age_at_maturity, reject_if: {op: gt, value: 70},   reason: "Applicant would be {actual:.0f} at loan maturity (limit {threshold:.0f})"}
+  - {id: BUREAU_SCORE,   title: "Bureau score",                    metric: bureau_score,   reject_if: {op: lt, value: 600}, refer_if: {op: lt, value: 650}, missing: refer, reason: "Bureau score {actual} is below the policy threshold {threshold}"}
+  - {id: DPD_12M,        title: "Recent delinquency",              metric: dpd_max_12m,    reject_if: {op: gt, value: 59},  refer_if: {op: gt, value: 29}, reason: "Max days-past-due in last 12 months was {actual:.0f}"}
+  - {id: WRITEOFF,       title: "No write-off / settlement",       metric: writeoff,       reject_if: {op: eq, value: true},  reason: "Bureau shows a written-off or settled account"}
+  - {id: INCOME_MIN,     title: "Minimum assessed income",         metric: est_income,     reject_if: {op: lt, value_param: min_income}, reason: "Assessed monthly income ₹{actual:,.0f} is below the minimum ₹{threshold:,.0f}"}
+  - {id: HISTORY_MIN,    title: "At least 6 months of statement",  metric: observed_months, refer_if: {op: lt, value: 6}, reason: "Only {actual:.0f} complete months of bank statement available"}
+  - {id: LOAN_MAX,       title: "Maximum ticket size",             metric: loan_amount,    reject_if: {op: gt, value_param: max_loan}, reason: "Requested amount exceeds the maximum ticket"}
+  - {id: TENURE_CAP,     title: "Tenure within product cap",       metric: tenure_years,   reject_if: {op: gt, value_metric: tenure_cap_years}, reason: "Requested tenure {actual:.0f} years exceeds product cap {threshold:.0f} years"}
+  - {id: ELIG_MIN_LOAN,  title: "Supportable loan >= minimum",     metric: max_eligible_loan, reject_if: {op: lt, value_param: min_loan}, reason: "Income and collateral support only ₹{actual:,.0f}, below the minimum ticket ₹{threshold:,.0f}"}
+  - {id: ELIG_GAP,       title: "Requested vs supportable amount", metric: eligibility_ratio, refer_if: {op: lt, value_param: min_eligibility_ratio}, reason: "Only {actual:.0%} of the requested amount is supportable"}
+  - {id: UNDISCLOSED_EMI, title: "Obligations match bureau",       metric: undisclosed_obligations, refer_if: {op: eq, value: true}, reason: "Bank statement shows loan repayments not present in the bureau report"}
+  - {id: TITLE_LITIGATION, title: "Clear title (no litigation)",   metric: title_blocked,  reject_if: {op: eq, value: true},  reason: "Property is under litigation"}
+  - {id: TITLE_ENCUMBRANCE, title: "No encumbrance",               metric: encumbrance,    refer_if: {op: eq, value: true},  reason: "Existing encumbrance on the property needs legal review"}
+  - {id: VALUATION_REPORTS, title: "Independent valuation reports (RBI Annex V)", metric: valuation_shortfall, refer_if: {op: gt, value: 0}, reason: "{actual:.0f} more independent valuation report(s) needed for a loan of this size (RBI HFC Directions Annex V paras 1.5 and 1.6)"}
+  - {id: APPROVED_PLAN,  title: "Approved building plan",          metric: approved_plan,  refer_if: {op: eq, value: false}, reason: "Construction lacks an approved plan"}
+compliance:                 # honest status of every regulatory claim. verified = read in RBI primary text; secondary = from reputable summaries; internal = lender policy, not regulation
+  - {topic: "Regulator of HFCs", source: "RBI Housing Finance Companies Directions, 2025 (dated 28 Nov 2025)", status: verified, note: "Regulation moved from NHB to RBI in 2019; the problem statement still says NHB"}
+  - {topic: "LTV caps, individual housing loans", source: "HFC Directions 2025 para 58: 90% up to 30L, 80% to 75L, 75% above", status: verified, note: "Implemented as ltv_caps.HL"}
+  - {topic: "LTV for loan against property", source: "No cap in the Directions", status: internal, note: "60% is the lender's own limit"}
+  - {topic: "KYC and AML", source: "NBFC Know Your Customer Directions 2025 (RBI/DOR/2025-26/361), read in the primary PDF; applies to HFCs through HFC Directions para 5(23)", status: verified, note: "Built: PAN verification and an officer decision on failure (17(10), 18); Aadhaar voluntary (23); non-face-to-face customers rated high-risk (44); confidentiality of risk category, suspicion and STR from the applicant (19, 20(4), 52); 5-year record retention (47). Not built: live sanctions-list feeds (54 to 56), CKYCR upload (63), V-CIP, address confirmation (44(3)). Screening here is a fixture"}
+  - {topic: "Key Fact Statement, grievance, cooling-off, data in India, applicability to HFCs", source: "RBI Digital Lending Directions 2025 (8 May 2025): para 3(iii) covers HFCs; 8(i) KFS per the 15 Apr 2024 circular; 10 cooling-off not under one day, Board-set; 11 grievance officer on the KFS and RBI CMS escalation after 30 days; 12 explicit, revocable consent; 13(iv) data stored only in India", status: verified, note: "Read in the primary text. The KFS format is Annex I of the RBC Directions (read). Demo is hosted outside India with synthetic data only; production must store data in India"}
+  - {topic: "No pre-payment charge, floating-rate loans", source: "RBC Directions 2025 para 34 (sanctioned or renewed from 1 Jan 2026) and HFC Directions 2025 para 163", status: verified, note: "Floating-rate loans to individuals for non-business purposes: none, from any source of funds. Business purpose: none for upper-layer NBFCs, none up to Rs 50 lakh for middle-layer NBFCs; otherwise as disclosed, on the amount prepaid. Must be stated in the KFS"}
+  - {topic: "Key Facts Statement, penal charges, reset", source: "NBFC Responsible Business Conduct Directions 2025 para 29 and Annex I, 30, 31 (read in the primary PDF; HFCs covered by para 3(7))", status: verified, note: "Built: Annex I Part 1 and 2, proposal number, 3-working-day validity, APR sheet (reproduces the RBI example 17.07%), amortisation schedule, acknowledgement on record, penal charge not penal interest, reset options with the 25 bps impact. Lender-set values are marked Lender to state. Not built: Hindi KFS, quarterly statement, document release, agent rules"}
+  - {topic: "Fair Practices Code, HFCs", source: "RBI HFC Directions 2025 Chapter X, paras 129 to 177 (read in the primary PDF, version dated 21 Oct 2026)", status: verified, note: "Implemented or disclosed: written reasons for rejection (135), fee and charge disclosure and all-in cost (131, 132), 60-day exit if terms worsen (137), grievance acknowledgement, response times and NHB escalation (142 to 144), no pre-payment charge on floating-rate housing loans (163), non-discrimination (168), confidentiality (160), Hindi or English display (167). Not built: MITC signing and handover (165), DSA and recovery-agent rules"}
+  - {topic: "Valuation reports by loan size", source: "RBI HFC Directions 2025 Annex V paras 1.5, 1.6, 1.8", status: verified, note: "From Rs 50 lakh two reports (one independent), from Rs 75 lakh two independent reports, lower value used; for a first purchase the value used cannot exceed the transaction value. Implemented as policy rule VALUATION_REPORTS and the lower-of logic. Our own model estimate counts as one report, not as an independent one"}
+  - {topic: "Responsible AI in lending", source: "RBI FREE-AI committee report, 13 Aug 2025", status: secondary, note: "Recommendations, not binding rules"}
+  - {topic: "FOIR cap, age limits, bureau cut-offs, PD cut-offs", source: "Lender credit policy", status: internal, note: "Illustrative values; Hero Housing's real thresholds were not available"}
+  - {topic: "Data protection", source: "DPDP Rules 2025, G.S.R. 846(E) with corrigendum 892(E); commencement G.S.R. 843(E)", status: verified, note: "Read in the gazette text. Notice, safeguards, breach, retention and rights rules start 13 May 2027; the notice page, rights requests with a 90-day clock, consent withdrawal, retention-aware erasure, encryption and backups are built now. Not built: breach-notification workflow, consent-manager integration, nominee requests. The Data Protection Officer is the lender's to name. Not legal advice"}
+  - {topic: "Bank data in the Account Aggregator format", source: "ReBIT DEPOSIT FI schema (specifications.rebit.org.in)", status: verified, note: "Structure and mandatory fields read on the published page. Consent artefact, FIU signing and payload decryption are not built"}

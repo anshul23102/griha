@@ -1,0 +1,19 @@
+# runtime data, keys and third-party datasets: never committed
+/backend/data/
+/data-external/
+/ops/.data/
+/ops/.run/
+*.key
+*.pem
+.env
+.env.*
+# build and tooling
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+dist/
+.DS_Store
+.impeccable/
+frontend/test-results/
+frontend/playwright-report/

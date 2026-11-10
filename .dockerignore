@@ -1,0 +1,14 @@
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+backend/data
+backend/tests
+frontend/dist
+frontend/e2e
+ops/.data
+docs
+.impeccable
+.DS_Store
+
+data-external

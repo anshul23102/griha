@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 780" font-family="Hind, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#5b6b80"/></marker>
+    <style>
+      .box{fill:#fff;stroke:#c9d1dc;stroke-width:1.5}
+      .navy{fill:#17324f;stroke:#17324f}
+      .h{font-size:15px;font-weight:700;fill:#12243b}
+      .s{font-size:12px;fill:#5b6b80}
+      .w{fill:#fff}
+      .ok{fill:#e6f4ee;stroke:#1b7f5c}.warn{fill:#fdf3e0;stroke:#a64600}.bad{fill:#fdecea;stroke:#b3141b}
+      .gov{fill:#f1f4f8;stroke:#c9d1dc;stroke-dasharray:5 4}
+      .tmp{fill:none;stroke:#12439a;stroke-width:2;stroke-dasharray:7 5}
+      .ln{stroke:#5b6b80;stroke-width:1.6;fill:none;marker-end:url(#a)}
+    </style>
+  </defs>
+  <rect width="1200" height="780" fill="#f6f7f9"/>
+  <text x="30" y="38" class="h" style="font-size:22px">Griha: automated mortgage underwriting, end to end</text>
+  <text x="30" y="60" class="s">Models read and draft. A deterministic, versioned, replayable engine decides. Every applicant shown is synthetic.</text>
+
+  <rect class="tmp" x="20" y="78" width="1160" height="300" rx="0"/>
+  <text x="34" y="98" class="h" style="fill:#12439a">Temporal durable workflow: four feeds fetched in parallel and retried, each stage an activity, progress queryable live</text>
+
+  <rect class="box" x="34" y="115" width="150" height="120"/><text x="48" y="140" class="h">1. Intake</text>
+  <text x="48" y="162" class="s">Application form</text><text x="48" y="178" class="s">Consent before any pull</text><text x="48" y="194" class="s">Statement PDF upload</text>
+  <rect class="box" x="214" y="115" width="215" height="120"/><text x="228" y="140" class="h">2. Data sources (parallel)</text>
+  <text x="228" y="162" class="s">Bank or Account Aggregator, bureau,</text><text x="228" y="178" class="s">KYC and sanctions, land records.</text><text x="228" y="194" class="s">Each retried 3x; a dead feed sends</text><text x="228" y="210" class="s">the case to the Data queue</text>
+  <rect class="box" x="459" y="115" width="215" height="36"/><text x="473" y="139" class="h">3a. Income (cash flow)</text>
+  <rect class="box" x="459" y="157" width="215" height="36"/><text x="473" y="181" class="h">3b. Property valuation</text>
+  <rect class="box" x="459" y="199" width="215" height="36"/><text x="473" y="223" class="h">3c. Fraud + KYC/AML</text>
+  <rect class="box" x="704" y="115" width="200" height="120"/><text x="718" y="140" class="h">4. Eligibility sizing</text>
+  <text x="718" y="162" class="s">FOIR and LTV caps at a stress</text><text x="718" y="178" class="s">rate. A counter-offer, not</text><text x="718" y="194" class="s">a flat no</text>
+  <rect class="box" x="934" y="115" width="230" height="55"/><text x="948" y="139" class="h">5. Policy as code</text><text x="948" y="157" class="s">18 rules, hashed, traced</text>
+  <rect class="box" x="934" y="180" width="230" height="55"/><text x="948" y="204" class="h">6. Risk model</text><text x="948" y="222" class="s">Monotone GBM, scorecard, SHAP</text>
+  <path class="ln" d="M184 175H212"/><path class="ln" d="M429 175H457"/><path class="ln" d="M674 175H702"/><path class="ln" d="M904 142H932"/><path class="ln" d="M904 207H932"/>
+
+  <rect class="box navy" x="430" y="268" width="340" height="62"/><text x="600" y="295" text-anchor="middle" class="h w">7. Decision + 14 compliance controls</text><text x="600" y="315" text-anchor="middle" class="s" style="fill:#c9d1dc">deterministic; reasons on every outcome</text>
+  <path class="ln" d="M1050 235V252H600V266"/><path class="ln" d="M600 235V266"/>
+
+  <rect class="box ok" x="60" y="415" width="260" height="95"/><text x="75" y="442" class="h">APPROVE</text><text x="75" y="462" class="s">Priced offer, APR, Key Fact</text><text x="75" y="479" class="s">Statement, decision letter</text>
+  <rect class="box warn" x="360" y="415" width="480" height="95"/><text x="415" y="442" class="h">REFER: four queues, durable Review workflow</text><text x="415" y="462" class="s">Data, fraud, credit, property. Officer decision = Temporal Update.</text><text x="415" y="479" class="s">SLA timer escalates stale cases, audited. Four-eyes on fraud.</text>
+  <rect class="box bad" x="880" y="415" width="260" height="95"/><text x="895" y="442" class="h">REJECT</text><text x="895" y="462" class="s">Plain-language reasons,</text><text x="895" y="479" class="s">Path to Yes when fixable</text>
+  <path class="ln" d="M540 330L190 413"/><path class="ln" d="M600 330V413"/><path class="ln" d="M660 330L1010 413"/>
+
+  <rect class="box gov" x="20" y="545" width="1160" height="215"/>
+  <text x="38" y="572" class="h">Under every stage</text>
+  <rect class="box" x="38" y="590" width="215" height="150"/><text x="52" y="614" class="h" style="font-size:13px">Audit and privacy</text><text x="52" y="634" class="s">Hash-chained SQLite log, replay,</text><text x="52" y="650" class="s">AES-GCM key per case; Temporal holds</text><text x="52" y="666" class="s">sealed blobs only; erase = drop key</text>
+  <rect class="box" x="268" y="590" width="215" height="150"/><text x="282" y="614" class="h" style="font-size:13px">Typed document reading</text><text x="282" y="634" class="s">Text parser by default. Optional</text><text x="282" y="650" class="s">local model via Pydantic AI:</text><text x="282" y="666" class="s">validated output, auto-retry,</text><text x="282" y="682" class="s">injection-safe, cross-checked</text>
+  <rect class="box" x="498" y="590" width="215" height="150"/><text x="512" y="614" class="h" style="font-size:13px">Observability</text><text x="512" y="634" class="s">Prometheus metrics, Grafana</text><text x="512" y="650" class="s">dashboard, Temporal event history,</text><text x="512" y="666" class="s">in-app Operations page</text>
+  <rect class="box" x="728" y="590" width="215" height="150"/><text x="742" y="614" class="h" style="font-size:13px">Policy simulator</text><text x="742" y="634" class="s">Replay stored cases under a new</text><text x="742" y="650" class="s">threshold before shipping it, with</text><text x="742" y="666" class="s">a fairness check</text>
+  <rect class="box" x="958" y="590" width="205" height="150"/><text x="972" y="614" class="h" style="font-size:13px">Model card</text><text x="972" y="634" class="s">Baselines, calibration by decile,</text><text x="972" y="650" class="s">monotone guarantees, regulatory</text><text x="972" y="666" class="s">map with verification status</text>
+</svg>

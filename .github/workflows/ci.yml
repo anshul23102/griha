@@ -1,0 +1,45 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+        working-directory: backend
+      - run: uv run pytest -q
+        working-directory: backend
+      - name: Static security scan (medium and above)
+        run: uvx bandit -r griha -ll -q
+        working-directory: backend
+      - name: Dependency audit
+        run: uvx pip-audit -r <(uv export --no-hashes --no-dev)
+        working-directory: backend
+        shell: bash
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.4.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm, cache-dependency-path: frontend/pnpm-lock.yaml }
+      - run: pnpm install --frozen-lockfile
+        working-directory: frontend
+      - run: npx tsc -b
+        working-directory: frontend
+      - run: pnpm build
+        working-directory: frontend
+      - run: pnpm audit --prod
+        working-directory: frontend
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t griha .
+      - name: Container starts and answers
+        run: |
+          docker run -d --name g -p 7860:7860 griha
+          for i in $(seq 1 30); do curl -sf localhost:7860/api/health && exit 0; sleep 2; done
+          docker logs g; exit 1
