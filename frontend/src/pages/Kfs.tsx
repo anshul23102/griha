@@ -21,6 +21,12 @@ const T = {
     lender: 'ऋणदाता बताएगा', c: ['माह', 'आरंभिक शेष', 'मूलधन', 'ब्याज', 'किस्त'], impact: 'अंतिम दर में 25 आधार अंकों के बदलाव का असर', emi: 'किस्त', epi: 'किस्तों की संख्या' },
 }
 
+function Tbl({ items, val }: { items: J[]; val: (v: J) => ReactNode }) {
+  return (
+    <table className="chart w-full"><tbody>{items.map(i => <tr key={i.no}><th scope="row" className="w-10 align-top">{i.no}</th><td className="align-top w-[36%] font-medium">{i.item}</td><td className={i.lender_to_set ? 'italic' : ''}>{val(i.value)}</td></tr>)}</tbody></table>
+  )
+}
+
 export default function Kfs() {
   const { id } = useParams()
   const { t, lang } = useI18n()
@@ -48,9 +54,6 @@ export default function Kfs() {
     return <ul className="m-0 pl-4">{Object.entries(v).map(([kk, vv]) => <li key={kk}>{kk.replace(/_/g, ' ')}: {String(vv)}</li>)}</ul>
   }
   async function ack() { setBusy(true); try { await api(`/cases/${id}/kfs-ack`, {}); await load() } catch (e) { setErr((e as Error).message) } setBusy(false) }
-  const Tbl = ({ items }: { items: J[] }) => (
-    <table className="chart w-full"><tbody>{items.map(i => <tr key={i.no}><th scope="row" className="w-10 align-top">{i.no}</th><td className="align-top w-[36%] font-medium">{i.item}</td><td className={i.lender_to_set ? 'italic' : ''}>{val(i.value)}</td></tr>)}</tbody></table>
-  )
   return (
     <div className="mx-auto max-w-[900px] px-5 py-6">
       <div className="no-print flex items-center justify-between gap-3 mb-5">
@@ -63,8 +66,8 @@ export default function Kfs() {
           <div className="text-right text-sm"><div className="mono">{x.prop}: {k.proposal_no}</div><div>{x.valid}: <b>{c.kfs_valid_until}</b></div></div>
         </header>
         <p className="mt-3 text-sm">{x.validb}</p>
-        <h2 className="mt-5 text-lg font-bold">{x.p1}</h2><Tbl items={a.part1.map((i: J) => i.no === 1 ? { ...i, value: `${k.proposal_no} · ${i.value}` } : i)} />
-        <h2 className="mt-6 text-lg font-bold">{x.p2}</h2><Tbl items={a.part2} />
+        <h2 className="mt-5 text-lg font-bold">{x.p1}</h2><Tbl val={val} items={a.part1.map((i: J) => i.no === 1 ? { ...i, value: `${k.proposal_no} · ${i.value}` } : i)} />
+        <h2 className="mt-6 text-lg font-bold">{x.p2}</h2><Tbl val={val} items={a.part2} />
         <h2 className="mt-6 text-lg font-bold">{x.apr}</h2>
         <table className="chart w-full"><tbody>{a.apr_sheet.map((r: string[], i: number) => <tr key={i}><td>{i + 1}. {r[0]}</td><td className="r num">{r[1]}</td></tr>)}</tbody></table>
         <h2 className="mt-6 text-lg font-bold">{x.sch}</h2>

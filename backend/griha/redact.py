@@ -22,8 +22,9 @@ def applicant_decision(d: dict) -> dict:
     d["reasons"] = [r for r in d.get("reasons", []) if r["code"] not in hidden]
     internal = bool(hidden) or d.get("refer_queue") == "FRAUD"
     d["fraud"] = None
+    d["withheld"] = False
     if d.get("outcome") == "REFER" and internal:
-        d["headline"], d["refer_queue"] = NEUTRAL_HEADLINE, "DATA"
+        d["headline"], d["refer_queue"], d["withheld"] = NEUTRAL_HEADLINE, "DATA", True
     ev = []
     for s in d.get("evidence", []):
         if s["stage"] == "fraud":

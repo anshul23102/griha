@@ -12,7 +12,7 @@ Home Loan and Loan Against Property decisions in milliseconds: **approve, reject
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![Temporal](https://img.shields.io/badge/Temporal-workflows-000000)
-![Tests](https://img.shields.io/badge/tests-118%20backend%20%2B%2023%20browser-brightgreen)
+![Tests](https://img.shields.io/badge/tests-126%20backend%20%2B%2025%20browser-brightgreen)
 ![Data](https://img.shields.io/badge/applicant%20data-100%25%20synthetic-orange)
 
 **[Live demo](https://16-178-213-170.sslip.io)** · [Architecture](#architecture) · [Quick start](#quick-start) · [Regulatory coverage](#regulatory-coverage) · [Honest limits](#honest-limits)
@@ -100,7 +100,7 @@ Griha is a working answer to one question: **can an underwriting engine be fast,
 | Document AI | Deterministic text parser by default; optional local model through a typed Pydantic AI agent |
 | Frontend | React 19, Vite 8, Tailwind CSS v4, TypeScript, React Router, Hind and Azeret Mono fonts |
 | Observability | Prometheus, Grafana (provisioned dashboard), `prometheus-client` |
-| Quality | pytest (118), Playwright with axe accessibility checks (23), bandit, pip-audit, pnpm audit, GitHub Actions |
+| Quality | pytest (126), Playwright with axe accessibility checks (25), bandit, pip-audit, pnpm audit, GitHub Actions |
 | Deployment | One Docker image, Caddy for HTTPS, AWS EC2 |
 
 ## Quick start
@@ -201,6 +201,18 @@ Data ─▶ Income ─▶ Property ─▶ Eligibility ─▶ Policy ─▶ Risk 
 | **Fraud and KYC/AML** | Tamper and behaviour checks, UN list screen, PEP and STR signals | A sanctions match goes to an officer, never an automatic decline, and is hidden from the applicant |
 | **Compliance** | 15 controls per case, each with clause and verification status (11 shown to the applicant) | Controls that are *enforced* (for example a sanctions match or high-risk onboarding) route the case to an officer; every control is shown with its status |
 
+**"Humanless" does not mean "no human anywhere".** A clean case is decided with no person involved. A person is involved only where the law requires it (a sanctions match, or a rejection that an officer must record: KYC Directions para 18), where a document or title needs checking, or where predicted risk is in a grey zone. On 1,000 synthetic cases the engine decides 62.5% alone (53.8% approved, 8.7% declined) and refers 37.5%: 25.5% to Credit, 5.1% to Fraud and compliance, 4.9% to Property and 2.0% to Data. The home page shows this breakdown.
+
+We tested loosening the thresholds to lift the automatic rate. In the simulation it rises, but so does the default rate among approved loans:
+
+| Eligibility threshold (`min_eligibility_ratio`) | Decided automatically | Realised default rate of approved loans |
+|---|---|---|
+| 0.60 (shipped) | 62.5% | 3.4% |
+| 0.50 | 66.4% | 4.2% |
+| 0.40 | 69.8% | 4.9% |
+
+The synthetic labels cannot credit the benefit of a smaller loan, so this overstates the cost of loosening. We still left the limits where they are rather than tune them for the headline number. A lender would set them from its own losses, using the Policy Impact Simulator.
+
 Language models are used only to *read* documents, behind a typed, validated schema, with a cross-check against the PDF text layer. They never score or decide.
 
 ## The risk model, and evidence outside our own generator
@@ -233,6 +245,8 @@ Four regulatory documents were read in their **primary text** (not summaries), a
 | RBI **NBFC KYC Directions, 2025** (RBI/DOR/2025-26/361) | Aadhaar is voluntary, officer records any rejection, high-risk rating for online onboarding, confidentiality of risk category, suspicion and STR (paras 19, 20(4), 52), five-year retention (para 47) |
 | RBI **NBFC Responsible Business Conduct Directions, 2025** (RBI/DOR/2025-26/362) | Annex I Key Facts Statement, three-working-day validity, penal charges as a charge not interest (para 30), prepayment (para 34), rate-setting disclosure |
 | **DPDP Rules, 2025** (G.S.R. 846(E), corrigendum 892(E), commencement 843(E)) | Notice, security safeguards, breach notification (rule 7), data-principal rights, retention |
+
+**On "NHB regulations".** The brief names the National Housing Bank. Since August 2019 the RBI regulates housing finance companies, and the RBI's *Housing Finance Companies Directions, 2025* are the operative text that replaced the NHB's directions. That is why the controls cite RBI paragraphs. The NHB still runs a complaint redressal cell, and the borrower's letter names it (HFC Directions para 144).
 
 Reading the primary text found and fixed real defects. For example, the applicant's view used to leak sanctions and fraud findings, which would tip off a suspect; a PAN or sanctions failure used to auto-reject instead of going to an officer; erasure ignored the five-year retention duty. A duty-by-duty table with the honest "not built" rows is in [`docs/security.md`](docs/security.md).
 
@@ -268,7 +282,7 @@ Full control list, tests and limits: [`docs/security.md`](docs/security.md). To 
 
 ## API reference
 
-Interactive OpenAPI docs are served at `/docs` when the API runs. Main routes:
+Interactive OpenAPI docs are served at `/docs` (the hosted demo allows the Swagger CDN on that one page only). `POST /api/applications/new` accepts an `Idempotency-Key` header: a double click or retry returns the first case instead of creating a second. Main routes:
 
 <details>
 <summary><b>Applicant and case routes</b></summary>
@@ -318,9 +332,9 @@ Interactive OpenAPI docs are served at `/docs` when the API runs. Main routes:
 ## Testing and CI
 
 ```bash
-cd backend && uv run pytest -q            # 118 tests; the Temporal tests boot their own dev server and skip if the CLI is absent
+cd backend && uv run pytest -q            # 126 tests; the Temporal tests boot their own dev server and skip if the CLI is absent
 cd frontend && npx tsc -b                 # the real typecheck
-cd frontend && GRIHA_API_LIMIT=5000 ../ops/start.sh && pnpm e2e   # 23 browser tests with axe accessibility checks
+cd frontend && GRIHA_API_LIMIT=5000 ../ops/start.sh && pnpm e2e   # 25 browser tests with axe accessibility checks
 ```
 
 What the tests cover, beyond the obvious: byte-for-byte replay and tamper detection, crypto-shredding, retention deferral, applicant-view redaction, the APR example from the RBI, Annex I structure, Hindi/English parity of the KFS, per-attribute fairness statistics, a real UN-list hit end to end, the breach clock, XML hardening, prompt-injection handling, multi-worker consistency, and a real Temporal server.
@@ -329,7 +343,7 @@ GitHub Actions ([`ci.yml`](.github/workflows/ci.yml)) runs on every push: backen
 
 ## Deployment
 
-The hosted demo is one Docker container on a small AWS EC2 instance, with Caddy providing HTTPS. It runs inline (no Temporal or Grafana), with synthetic data only. The Operations page shows recorded screenshots of the full stack. Step-by-step instructions, backup and retention are in [`docs/deploy.md`](docs/deploy.md).
+The hosted demo is one Docker container on a small AWS EC2 instance, with Caddy providing HTTPS, and its data on a named Docker volume so a redeploy keeps cases and private links. On first start it runs the ten prepared synthetic scenarios through the engine, so the desk and the live numbers are not empty. It runs inline (no Temporal or Grafana), with synthetic data only. A case rebuilt after a policy or engine change is marked as such rather than silently showing a different decision. The Operations page shows recorded screenshots of the full stack. Step-by-step instructions, backup and retention are in [`docs/deploy.md`](docs/deploy.md).
 
 ```bash
 ops/deploy-vm.sh <public-ip> ~/.ssh/<key>.pem
@@ -346,7 +360,7 @@ backend/
   policy/v1.yaml    18 rules and the regulatory map, hashed into every decision
   artifacts/        trained models, metrics, real-data validation
   tools/            loadtest, validate_public (real data), validate_freddie (local only)
-  tests/            118 tests
+  tests/            126 tests
 frontend/           React app, Playwright e2e and screenshot scripts
 ops/                start/stop scripts, Prometheus and Grafana config, VM deploy script
 docs/               architecture, model card, security, scalability, deploy, data licensing, design spec, video script

@@ -61,8 +61,8 @@ async function send(path: string, init: RequestInit): Promise<J> {
   return data
 }
 
-export const api = (path: string, body?: J): Promise<J> =>
-  send(path, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+export const api = (path: string, body?: J, headers?: Record<string, string>): Promise<J> =>
+  send(path, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json', ...(headers || {}) }, body: JSON.stringify(body) })
 
 export const apiForm = (path: string, form: FormData): Promise<J> => send(path, { method: 'POST', body: form })
 

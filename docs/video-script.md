@@ -15,7 +15,7 @@ Rules for this video: use only things the product shows itself. Say "synthetic" 
 | 0:00 | Home page | "A home-loan file normally waits days for an officer. Griha decides the clear cases in milliseconds, explains every decision, and sends the rest to a person with the evidence ready. Every applicant you will see is synthetic." |
 | 0:15 | Run a live case (approve) | "One click runs the real engine: data, income, property, fraud, eligibility, policy, risk, compliance. About thirty milliseconds of compute." |
 | 0:30 | Open the full case | "The decision comes with reasons, a Key Fact Statement with the all-in cost, and a cooling-off exit. These follow the RBI's housing finance directions, read in the primary text." Click the terms sheet briefly. |
-| 0:50 | Evidence, regulatory controls | "Fourteen controls per case, each with its clause and how well we verified it." |
+| 0:50 | Evidence, regulatory controls | "Fifteen controls per case, each with its clause and how well we verified it." |
 | 1:05 | Apply, flaky bureau, submit | "I apply with a bureau that fails twice. The workflow retries and the case still completes. Here is the real history in Temporal: attempt three." Switch to the Temporal tab, show the timeline, then the encrypted input: "Personal data inside the workflow engine is ciphertext." |
 | 1:30 | Referred case, desk | "Risky cases go to a queue. Fraud-flagged approvals need the Credit Head. A timer escalates a stale case and writes it to the audit." Sign in, review a case. |
 | 1:50 | Governance: verify chain, replay | "Every decision is in a hash-chained log. I can replay it byte for byte. If the engine has changed since, replay says so instead of crying tampering." |

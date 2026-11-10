@@ -167,7 +167,7 @@ await test('operations page shows Temporal, Prometheus and live numbers', async 
 
 await test('checklist, letter, platform pages render and pass accessibility', async () => {
   const p = await newPage()
-  await p.goto(BASE + '/coverage'); ok(await p.locator('ol > li h3').count() >= 8, 'eight requirement blocks'); await axe(p, 'coverage')
+  await p.goto(BASE + '/coverage'); await p.locator('ol > li h3').first().waitFor({ timeout: 10000 }); ok(await p.locator('ol > li h3').count() >= 8, 'eight requirement blocks'); await axe(p, 'coverage')
   await p.goto(BASE + '/'); await axe(p, 'home')
   const id = await p.evaluate(async () => (await (await fetch('/api/applications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scenario_id: 'salaried_approve' }) })).json()))
   await p.goto(BASE + `/case/${id.case_id}/letter#k=${id.access_key}`); await p.getByRole('heading', { name: 'Decision on your application' }).waitFor(); await p.getByText('Approved', { exact: true }).first().waitFor()
@@ -315,6 +315,23 @@ await test('real sanctions screen: a listed name is withheld from the applicant,
   })
   ok(r.outcome === 'REFER', 'referred, not auto-declined: ' + r.outcome)
   ok(!r.body.includes('qdi.') && !r.body.includes('consolidated list'), 'no list reference in the applicant view')
+  await p.context().close()
+})
+
+await test('example values are fresh each time, so one judge never looks like a ring to the next', async () => {
+  const p = await newPage(); await p.goto(BASE + '/apply')
+  const seen = new Set()
+  for (let i = 0; i < 2; i++) { await p.getByRole('button', { name: 'Fill with example values' }).click(); seen.add(await p.getByLabel('PAN', { exact: false }).first().inputValue()) }
+  ok(seen.size === 2, 'two clicks gave the same PAN: ' + [...seen])
+  await p.context().close()
+})
+
+await test('unknown address shows a real not-found page, and the home page says where humans come in', async () => {
+  const p = await newPage(); const r = await p.goto(BASE + '/no-such-page')
+  await p.getByText('Page not found').waitFor({ timeout: 8000 })
+  await p.goto(BASE + '/'); await p.getByText('Where the humans come in').waitFor({ timeout: 20000 })
+  const t = await p.locator('main').innerText(); ok(/Credit/.test(t) && /asked for more than supportable|bureau score/.test(t), 'queue breakdown with credit reasons')
+  await axe(p, 'Home with breakdown')
   await p.context().close()
 })
 

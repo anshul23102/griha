@@ -14,6 +14,13 @@ const EMPTY: F = {
 }
 const EXAMPLE: F = { ...EMPTY, name: 'Meena Patel', dob: '1988-04-12', pan: 'ABCDE1234F', phone: '9876543210', gender: 'F', employer: 'Metro Hospital',
   monthly_income: '62000', existing_emi: '4000', amount: '2400000', area_sqft: '950', property_age_years: '6', declared_value: '3600000', survey_no: 'KH-221/4' }
+// Every click gets its own PAN, phone and survey number, so one judge's example never looks like another's to the linked-applicant check.
+const rnd = (n: number) => Math.floor(Math.random() * n)
+const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
+const freshExample = (): F => ({ ...EXAMPLE,
+  pan: Array.from({ length: 5 }, () => letters[rnd(letters.length)]).join('') + String(1000 + rnd(9000)) + letters[rnd(letters.length)],
+  phone: String(6 + rnd(4)) + String(100000000 + rnd(899999999)),
+  survey_no: `KH-${100 + rnd(899)}/${1 + rnd(9)}` })
 const STEP_OF: Record<string, number> = {
   simulate_outage: 3,
   name: 0, dob: 0, pan: 0, phone: 0, gender: 0, employment: 0, employer: 0, monthly_income: 0, existing_emi: 0,
@@ -37,6 +44,7 @@ export default function Apply() {
   const [upBusy, setUpBusy] = useState(false)
   const [general, setGeneral] = useState<string | null>(null)
   const head = useRef<HTMLHeadingElement>(null)
+  const idem = useRef<string>(crypto.randomUUID())      // one key per submission: a double click or a retry returns the first case instead of creating a second
 
   useEffect(() => { api('/reference').then(setRef).catch(e => setGeneral(e.message)) }, [])
   useEffect(() => { head.current?.focus() }, [step])
@@ -88,7 +96,7 @@ export default function Apply() {
       independent_valuations: [num('valuation_1'), num('valuation_2')].filter(x => x > 0),
       survey_no: f.survey_no, simulate_outage: f.simulate_outage, consent: f.consent, statement_source: f.statement_source, bank_profile: f.bank_profile, document_id: doc?.doc_id ?? null,
     }
-    try { const r = await api('/applications/new?wait=false', body); try { sessionStorage.removeItem('griha_draft') } catch { /* ignore */ } nav('/case/' + r.case_id) }
+    try { const r = await api('/applications/new?wait=false', body, { 'Idempotency-Key': idem.current }); idem.current = crypto.randomUUID(); try { sessionStorage.removeItem('griha_draft') } catch { /* ignore */ } nav('/case/' + r.case_id) }
     catch (e) {
       setBusy(false)
       if (e instanceof ApiError && Object.keys(e.fields).length) {
@@ -111,9 +119,9 @@ export default function Apply() {
 
       {restored && <Notice>{t('ap.draft')} <button type="button" className="underline text-blue font-display font-bold" onClick={() => { setF(EMPTY); setStep(0); setErrors({}); setRestored(false); try { sessionStorage.removeItem('griha_draft') } catch { /* ignore */ } }}>{t('ap.draft.clear')}</button></Notice>}
       <div className="grid gap-6 lg:grid-cols-[1fr_340px] items-start">
-        <form onSubmit={e => { e.preventDefault(); step < 3 ? next() : submit() }} noValidate>
+        <form onSubmit={e => { e.preventDefault(); if (step < 3) next(); else submit() }} noValidate>
           <Sheet title={<span ref={head} tabIndex={-1} className="outline-none">{names[step]}</span>} sub={t(`ap.sub.${step}`)}
-            aside={step === 0 ? <button type="button" onClick={() => { setF(EXAMPLE); setErrors({}) }} className="text-sm underline text-blue font-display font-semibold min-h-11 px-1">{t('ap.example')}</button> : undefined}>
+            aside={step === 0 ? <button type="button" onClick={() => { setF(freshExample()); setErrors({}) }} className="text-sm underline text-blue font-display font-semibold min-h-11 px-1">{t('ap.example')}</button> : undefined}>
             <div className="p-5 grid gap-5 sm:grid-cols-2">
               {step === 0 && <>
                 <div className="sm:col-span-2"><Field id="name" label={t('ap.name')} error={errors.name}><input {...fp('name')} autoComplete="name" /></Field></div>

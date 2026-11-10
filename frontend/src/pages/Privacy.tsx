@@ -46,10 +46,11 @@ const C = {
   },
 }
 
+const Sec = ({ h, children }: { h: string; children: React.ReactNode }) => <Sheet title={h}><div className="px-5 py-4 max-w-[75ch]">{children}</div></Sheet>
+
 export default function Privacy() {
   const { lang } = useI18n()
   const x = C[lang] ?? C.en
-  const Sec = ({ h, children }: { h: string; children: React.ReactNode }) => <Sheet title={h}><div className="px-5 py-4 max-w-[75ch]">{children}</div></Sheet>
   return (
     <div className="flex flex-col gap-6">
       <Board hi="गोपनीयता सूचना" en="Privacy notice"><p className="m-0 mt-2">DPDP Rules 2025 · NBFC KYC Directions 2025</p></Board>

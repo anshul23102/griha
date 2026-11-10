@@ -12,6 +12,15 @@ const KNOBS = [
   { key: 'min_eligibility_ratio', min: 0.3, max: 1, step: 0.05, fmt: (v: number) => pct(v, 0) },
 ]
 
+const Row = ({ label, a, c, f, upGood }: { label: string; a: number; c: number; f: (v: number) => string; upGood: boolean | null }) => {
+  const d = c - a, flat = Math.abs(d) < 1e-9
+  const good = upGood === null ? null : (d > 0) === upGood
+  return (
+    <tr><th scope="row">{label}</th><td className="r num">{f(a)}</td><td className="r num font-semibold">{f(c)}</td>
+      <td className={`r num font-display font-semibold ${flat || good === null ? 'text-ink2' : good ? 'text-ok' : 'text-bad'}`}>
+        <span className="inline-flex items-center gap-1">{flat ? <Minus size={14} weight="bold" aria-hidden /> : d > 0 ? <ArrowUp size={14} weight="bold" aria-hidden /> : <ArrowDown size={14} weight="bold" aria-hidden />}{f(Math.abs(d))}</span></td></tr>)
+}
+
 export default function Simulator() {
   const { t } = useI18n()
   const [user, setUser] = useState(session())
@@ -64,14 +73,6 @@ export default function Simulator() {
 function Results({ r }: { r: J }) {
   const { t } = useI18n()
   const b = r.baseline, s = r.scenario
-  const Row = ({ label, a, c, f, upGood }: { label: string; a: number; c: number; f: (v: number) => string; upGood: boolean | null }) => {
-    const d = c - a, flat = Math.abs(d) < 1e-9
-    const good = upGood === null ? null : (d > 0) === upGood
-    return (
-      <tr><th scope="row">{label}</th><td className="r num">{f(a)}</td><td className="r num font-semibold">{f(c)}</td>
-        <td className={`r num font-display font-semibold ${flat || good === null ? 'text-ink2' : good ? 'text-ok' : 'text-bad'}`}>
-          <span className="inline-flex items-center gap-1">{flat ? <Minus size={14} weight="bold" aria-hidden /> : d > 0 ? <ArrowUp size={14} weight="bold" aria-hidden /> : <ArrowDown size={14} weight="bold" aria-hidden />}{f(Math.abs(d))}</span></td></tr>)
-  }
   const cr = (v: number) => '₹' + (v / 1e7).toFixed(1) + ' Cr'
   return (
     <div className="flex flex-col gap-6">

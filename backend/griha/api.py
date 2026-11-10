@@ -61,6 +61,8 @@ async def lifespan(app: FastAPI):
     STATE.update(engine=eng, scen=scenarios.build(eng), cases={}, docs={}, sim_base=None, portfolio=None)
     await _init_orchestrator()
     await _rehydrate()
+    if os.getenv("GRIHA_SEED_DEMO", "1" if PUBLIC_DEMO else "0") == "1" and not STATE["cases"]:
+        await _seed_demo()
     ref_task = asyncio.create_task(asyncio.to_thread(lambda: STATE.__setitem__("drift_ref", drift.build_reference(eng))))
     warm_task = asyncio.create_task(asyncio.to_thread(_portfolio_base)) if os.getenv("GRIHA_WARM_IMPACT", "1") == "1" else None   # so the first visitor does not wait for the 1,000-case replay
     yield
@@ -86,6 +88,10 @@ PAGE_HEADERS: dict[str, str] = {}     # set when the built frontend is mounted (
 
 def _headers(path: str) -> dict[str, str]:
     """API responses are never cached and may not load anything; pages and assets get the frontend CSP, assets cache for a year."""
+    if path in ("/docs", "/redoc"):                      # FastAPI's reference pages load Swagger/ReDoc from a CDN: allow exactly that here, nowhere else
+        return {**SEC_HEADERS, "Cache-Control": "no-cache", "Content-Security-Policy": (
+            "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+            "img-src 'self' data: https://fastapi.tiangolo.com https://cdn.redoc.ly; font-src 'self' https://fonts.gstatic.com; worker-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'")}
     if path.startswith("/api") or not PAGE_HEADERS:
         return SEC_HEADERS
     h = {**SEC_HEADERS, **PAGE_HEADERS}
@@ -167,6 +173,9 @@ def _apply_audit(entries: list[dict]) -> list[tuple[str, float]]:
             except Exception:
                 continue                                       # unreadable (for example erased): it stays in the audit trail only
             STATE["cases"][cid] = {"app": app_in, "decision": d, "status": _status(d), "created": x["ts"], "scenario": None, "reviews": []}
+            if d.policy_hash != p.get("policy_hash") or d.outcome != p.get("outcome"):       # rebuilt under a newer policy or engine than the one that decided it
+                STATE["cases"][cid]["restated"] = {"recorded_outcome": p.get("outcome"), "recorded_policy_hash": p.get("policy_hash"), "recorded_engine": p.get("engine_version"),
+                                                   "current_outcome": d.outcome, "current_policy_hash": d.policy_hash, "current_engine": config.ENGINE_VERSION}
             e.graph.add(app_in)
             loaded.append((cid, x["ts"]))
         elif ev == "HUMAN_REVIEW":
@@ -268,10 +277,20 @@ def statement_view(app_in) -> dict:
             "balance_breaks": balance_breaks(app_in.statement), "count": len(tx)}
 
 
+DEMO_NOTE = ("Demo note, shown only on this public demo: this referral has a reason that a real lender must not tell the applicant (RBI KYC Directions 2025 paras 19, 20(4), 52), "
+             "so the applicant sees only this neutral message. Sign in on the Lender desk (officer@griha.demo, password griha-demo) to read the reason. "
+             "Tip: reusing the example's phone number or property survey number under a different name or PAN looks like a fraud ring to the engine.")
+
+
 def view(case_id: str, role: str = "applicant") -> dict:
     """The case as the caller may see it. The default is the applicant's view, with what KYC Directions paras 19, 20(4), 52 keep confidential removed."""
     v = _view(case_id)
-    return v if role == "staff" else redact.applicant_view(v)
+    if role == "staff":
+        return v
+    v = redact.applicant_view(v)
+    if PUBLIC_DEMO and not v.get("erased") and v["decision"].get("withheld"):
+        v["demo_note"] = DEMO_NOTE
+    return v
 
 
 def _view(case_id: str) -> dict:
@@ -290,7 +309,7 @@ def _view(case_id: str) -> dict:
     if c.get("erased"):
         return {"case_id": case_id, "erased": True, "status": "erased", "created": c["created"], "outcome": d.outcome, "erased_at": c["erased_at"],
                 "audit": [{"seq": e["seq"], "event": e["event"], "ts": e["ts"], "hash": e["hash"][:12]} for e in eng().audit.for_case(case_id)]}
-    return {"case_id": case_id, "access_key": auth.case_key(case_id), "market_context": sources.market_context(a.property.city), "cooling_off_days": config.COOLING_OFF_DAYS, "scenario": c.get("scenario"), "status": c["status"], "created": c["created"],
+    return {"case_id": case_id, "access_key": auth.case_key(case_id), "market_context": sources.market_context(a.property.city), "cooling_off_days": config.COOLING_OFF_DAYS, "restated": c.get("restated"), "scenario": c.get("scenario"), "status": c["status"], "created": c["created"],
             "statement_source": a.statement_source, "doc_issues": a.doc_issues, "applicant": mask(a), "loan": a.loan.model_dump(), "property": a.property.model_dump(),
             "decision": d.model_dump(mode="json"), "statement": statement_view(a), "reviews": c["reviews"],
             "kfs_valid_until": _validity(c["created"]) if d.kfs else None, "kfs_ack": c.get("kfs_ack"),
@@ -317,6 +336,18 @@ def _validity(created: float, days: int = 3) -> str:
         if d.weekday() < 5:
             days -= 1
     return d.isoformat()
+
+
+async def _seed_demo() -> None:
+    """A hosted demo that opens empty looks broken: the desk, the latest-decisions strip and the Operations numbers have nothing in them.
+    On first start the ten prepared synthetic scenarios are run through the real engine once. They are ordinary cases and are labelled with their scenario."""
+    for sid, sc in STATE["scen"].items():
+        a = sc["app"].model_copy(deep=True)
+        a.case_id = "A-" + uuid.uuid4().hex[:8].upper()
+        try:
+            await create_case(a, sid, True)
+        except Exception:
+            continue                                         # a seed failure must never stop the server starting
 
 
 def _status(d) -> str:
@@ -568,7 +599,7 @@ def impact(manual_minutes: float = 45, review_minutes: float = 20, cost_per_hour
     return {
         "measured": {"source": f"{b['n']} synthetic cases replayed through the live engine", "n": b["n"], "straight_through_rate": round(straight, 4),
                      "approve_rate": round(b["approve_rate"], 4), "refer_rate": round(refer, 4), "reject_rate": round(b["reject_rate"], 4),
-                     "engine_ms_median": b["engine_ms_median"], "engine_ms_p95": b["engine_ms_p95"], "adverse_impact_ratio": b["adverse_impact_ratio"], "fairness": b["fairness"]},
+                     "engine_ms_median": b["engine_ms_median"], "engine_ms_p95": b["engine_ms_p95"], "adverse_impact_ratio": b["adverse_impact_ratio"], "fairness": b["fairness"], "refer_breakdown": b["refer_breakdown"]},
         "assumed": {"manual_minutes_per_file": manual_minutes, "review_minutes_per_referred_file": review_minutes, "officer_cost_per_hour_inr": cost_per_hour,
                     "files_per_month": files_per_month,
                     "note": "Replace these with the lender's own time-and-motion figures. They are not measured and not from a real lender."},
@@ -809,9 +840,35 @@ def reference():
     return intake.reference(eng().policy)
 
 
+_IDEM: dict[str, tuple[float, str]] = {}
+
+
+async def _idempotent(key: str | None):
+    """A double click or a retry after a dropped connection must not create a second case. The same Idempotency-Key returns the first case's view.
+    Held in memory for an hour; with several worker processes a retry that lands on another worker is treated as new (documented limit)."""
+    if not key:
+        return None
+    now = time.time()
+    for k in [k for k, (t, _) in _IDEM.items() if now - t > 3600]:
+        _IDEM.pop(k, None)
+    hit = _IDEM.get(key)
+    if not hit:
+        return None
+    for _ in range(150):                                     # the first request may still be running (Temporal mode)
+        if _get_case(hit[1]):
+            return view(hit[1])
+        await asyncio.sleep(0.2)
+    return None
+
+
 @app.post("/api/applications/new")
-async def apply_new(f: intake.IntakeForm, wait: bool = True):
+async def apply_new(f: intake.IntakeForm, wait: bool = True, idempotency_key: str | None = Header(default=None, pattern=r"^[A-Za-z0-9_-]{8,80}$")):
+    done = await _idempotent(idempotency_key)
+    if done:
+        return done
     cid = "A-" + uuid.uuid4().hex[:8].upper()
+    if idempotency_key:
+        _IDEM[idempotency_key] = (time.time(), cid)
     stmt = issues = src = None
     if f.statement_source == "uploaded":
         ext = STATE["docs"].get(f.document_id)

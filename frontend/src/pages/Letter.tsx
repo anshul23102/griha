@@ -10,13 +10,14 @@ export default function Letter() {
   const { t, tc, lang } = useI18n()
   const [c, setC] = useState<J | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [today] = useState(() => new Date())
   useEffect(() => { if (id) adoptKeyFromHash(id); api('/cases/' + id).then(setC).catch(e => setErr(e.message)) }, [id])
   if (err) return <div className="p-6"><Notice tone="bad">{err}</Notice></div>
   if (!c) return <div className="p-6"><Spinner label={t('common.loading')} /></div>
   if (c.erased) return <div className="p-6"><Notice>{t('case.erased.b')}</Notice></div>
   const d = c.decision, k = d.kfs
   const word = t(d.outcome === 'APPROVE' ? 'status.approved' : d.outcome === 'REFER' ? 'status.referred' : 'status.declined')
-  const date = new Date().toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+  const date = today.toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
   return (
     <div className="mx-auto max-w-[820px] px-5 py-6">
       <div className="no-print flex items-center justify-between gap-3 mb-5">

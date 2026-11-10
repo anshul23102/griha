@@ -1,6 +1,6 @@
 # Scalability: what we measured
 
-Everything here was measured with `backend/tools/loadtest.py` against the real API: each virtual user posts a prepared synthetic application and waits for the decision (policy, risk model, fraud, 14 controls, encrypted storage, audit write). The cases are synthetic, the feeds are simulated, and no bureau or bank latency is included, which in production dominates.
+Everything here was measured with `backend/tools/loadtest.py` against the real API: each virtual user posts a prepared synthetic application and waits for the decision (policy, risk model, fraud, 15 controls, encrypted storage, audit write). The cases are synthetic, the feeds are simulated, and no bureau or bank latency is included, which in production dominates.
 
 ## Results
 

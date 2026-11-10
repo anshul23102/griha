@@ -45,12 +45,19 @@ class Portfolio:
         by_gender: dict[str, list[int]] = defaultdict(lambda: [0, 0])
         by_tier: dict[int, list[int]] = defaultdict(lambda: [0, 0])
         per_case = []
+        by_queue: dict[str, int] = defaultdict(int)
+        credit_why: dict[str, int] = defaultdict(int)
         ms = []
         for app, truth in self.items:
             d: Decision = engine.underwrite(app, policy=policy, graph_flags=NO_GRAPH, record=False)
             outcomes[d.outcome] += 1
             ms.append(sum(e.ms for e in d.evidence))
             ok = d.outcome == "APPROVE"
+            if d.outcome == "REFER":
+                by_queue[d.refer_queue or "CREDIT"] += 1
+                if (d.refer_queue or "CREDIT") == "CREDIT":
+                    top = next((r.code for r in d.reasons if r.kind == "policy"), "RISK_GREY_ZONE")
+                    credit_why[{"ELIG_GAP": "elig_gap", "BUREAU_SCORE": "bureau_grey", "DPD_12M": "late_payments", "RISK_GREY_ZONE": "risk_grey"}.get(top, "other")] += 1
             per_case.append((app.case_id, d.outcome))
             for grp, key in ((by_gender, app.applicant.gender), (by_tier, app.applicant.city_tier)):
                 grp[key][0] += 1
@@ -72,6 +79,7 @@ class Portfolio:
                 "approved_volume": vol, "expected_loss_pct": (el / vol) if vol else 0.0,
                 "realised_default_rate_approved": (defaults / approved) if approved else 0.0,
                 "approval_rate_by_group": {k: round(v, 3) for k, v in rates.items()}, "adverse_impact_ratio": round(air, 3) if air else None, "fairness": fairness,
+                "refer_breakdown": {"by_queue": {k: round(v / n, 4) for k, v in sorted(by_queue.items())}, "credit_reasons": {k: round(v / n, 4) for k, v in sorted(credit_why.items(), key=lambda kv: -kv[1])}},
                 "engine_ms_median": round(statistics.median(ms), 2), "engine_ms_p95": round(sorted(ms)[int(len(ms) * 0.95) - 1], 2),
                 "_cases": per_case}
 

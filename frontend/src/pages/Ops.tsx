@@ -4,6 +4,12 @@ import { api, type J } from '../api'
 import { useI18n } from '../i18n'
 import { Board, Notice, Sheet, Spinner, statusCls } from '../components/kit'
 
+function Up({ ok, demo, t }: { ok: boolean; demo: boolean; t: (k: string) => string }) {
+  return ok ? <span className="inline-flex items-center gap-1 text-ok font-display font-bold"><CheckCircle size={18} weight="fill" aria-hidden />{t('ops.up')}</span>
+    : demo ? <span className="font-display font-semibold text-ink2">{t('ops.absent')}</span>
+    : <span className="inline-flex items-center gap-1 text-wait font-display font-bold"><WarningCircle size={18} weight="fill" aria-hidden />{t('ops.down')}</span>
+}
+
 export default function Ops() {
   const { t } = useI18n()
   const [o, setO] = useState<J | null>(null)
@@ -16,9 +22,6 @@ export default function Ops() {
   }, [])
   if (!o) return err ? <Notice tone="bad">{err}</Notice> : <Spinner label={t('common.loading')} />
   const m = o.metrics, orch = o.orchestrator, mon = o.monitoring, m_drift: J = o.drift ?? { state: 'warming', live: 0, min_live: 100, features: [] }
-  const Up = ({ ok }: { ok: boolean }) => ok ? <span className="inline-flex items-center gap-1 text-ok font-display font-bold"><CheckCircle size={18} weight="fill" aria-hidden />{t('ops.up')}</span>
-    : o.public_demo ? <span className="font-display font-semibold text-ink2">{t('ops.absent')}</span>
-    : <span className="inline-flex items-center gap-1 text-wait font-display font-bold"><WarningCircle size={18} weight="fill" aria-hidden />{t('ops.down')}</span>
   const stageMax = Math.max(1, ...Object.values<J>(m.stages).map(s => s.p95 ?? 0))
   const bars = (rows: [string, number][]) => {
     const mx = Math.max(1, ...rows.map(r => r[1]))
@@ -55,9 +58,9 @@ export default function Ops() {
         <Sheet title={t('ops.mon')} sub={t('ops.mon.sub')}>
           <table className="chart"><tbody>
             {[['Temporal UI', orch.ui, orch.mode === 'temporal'], ['Grafana', mon.grafana_url, mon.grafana], ['Prometheus', mon.prometheus_url, mon.prometheus]].map(([n, url, ok]) => (
-              <tr key={String(n)}><th scope="row" className="font-bold">{n}</th><td><Up ok={!!ok} /></td><td className="r">{url && ok ? <a href={String(url)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline text-blue font-display font-bold">{t('ops.open')}<ArrowSquareOut size={16} weight="bold" aria-hidden /></a> : null}</td></tr>))}
+              <tr key={String(n)}><th scope="row" className="font-bold">{n}</th><td><Up ok={!!ok} demo={!!o.public_demo} t={t} /></td><td className="r">{url && ok ? <a href={String(url)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline text-blue font-display font-bold">{t('ops.open')}<ArrowSquareOut size={16} weight="bold" aria-hidden /></a> : null}</td></tr>))}
             <tr><th scope="row" className="font-bold">{t('ops.raw')}</th><td /><td className="r"><a href="/api/metrics" target="_blank" rel="noreferrer" className="underline text-blue font-display font-bold mono">/api/metrics</a></td></tr>
-            <tr><th scope="row" className="font-bold">{t('ops.llm')}</th><td><Up ok={o.llm.ollama_ready} /></td><td className="r mono text-ink2">{o.llm.model}</td></tr>
+            <tr><th scope="row" className="font-bold">{t('ops.llm')}</th><td><Up ok={o.llm.ollama_ready} demo={!!o.public_demo} t={t} /></td><td className="r mono text-ink2">{o.llm.model}</td></tr>
           </tbody></table>
           {!(mon.grafana && mon.prometheus) && <p className="m-0 px-5 py-3 border-t border-faint text-sm text-ink2">{o.public_demo ? t('ops.hosted') : <>{t('ops.start')} <span className="mono">ops/start.sh</span></>}</p>}
         </Sheet>

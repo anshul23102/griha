@@ -42,3 +42,12 @@ def test_csp_pins_the_inline_script_only(tmp_path):
     _, headers = _site(tmp_path)
     csp = headers["Content-Security-Policy"]
     assert "script-src 'self' 'sha256-" in csp and "'unsafe-inline'" not in csp.split("style-src")[0] and "unsafe-eval" not in csp
+
+
+def test_unknown_pages_are_404_with_the_shell_and_missing_files_are_plain_404(tmp_path):
+    app, _ = _site(tmp_path)
+    c = TestClient(app)
+    r = c.get("/no-such-page")
+    assert r.status_code == 404 and "home</body>" in r.text                      # the router can draw its own not-found page, crawlers see a 404
+    assert c.get("/robots.txt").status_code == 404 and c.get("/sitemap.xml").status_code == 404   # not the app shell dressed as a file
+    assert c.get("/apply").status_code == 200 and c.get("/desk").status_code == 200 and c.get("/").status_code == 200

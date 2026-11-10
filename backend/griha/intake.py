@@ -53,7 +53,10 @@ class IntakeForm(BaseModel):
     @classmethod
     def _clean_text(cls, v):
         """No control or bidirectional-override characters: they hide text from reviewers and corrupt the audit trail."""
-        bad = [c for c in v if unicodedata.category(c) in ("Cc", "Cf", "Cs", "Co") or c in "<>"]
+        def joiner_ok(i: int) -> bool:
+            """ZWNJ and ZWJ shape conjuncts in Devanagari and other Indic scripts. They are allowed only between two letters or marks, never at the edges."""
+            return (v[i] in "\u200c\u200d" and 0 < i < len(v) - 1 and unicodedata.category(v[i - 1])[0] in "LM" and unicodedata.category(v[i + 1])[0] in "LM")
+        bad = [c for i, c in enumerate(v) if (unicodedata.category(c) in ("Cc", "Cf", "Cs", "Co") and not joiner_ok(i)) or c in "<>"]
         if bad:
             raise ValueError("Remove special characters from this field")
         return " ".join(v.split())

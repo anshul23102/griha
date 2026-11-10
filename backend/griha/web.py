@@ -13,6 +13,9 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 
+ROUTES = {"", "apply", "case", "desk", "simulator", "governance", "ops", "coverage", "sources", "privacy"}   # first path segments the React router serves
+
+
 def mount(app: FastAPI, dist: Path) -> dict[str, str]:
     """Registers the SPA routes on `app` (call after all API routes) and returns the headers to send with page responses."""
     dist = dist.resolve()
@@ -30,6 +33,11 @@ def mount(app: FastAPI, dist: Path) -> dict[str, str]:
         f = (dist / path).resolve()
         if path and f.is_file() and dist in f.parents:           # favicon and other root files; never outside dist
             return FileResponse(f)
+        if "." in path.rsplit("/", 1)[-1]:                       # a missing file (robots.txt, a stale asset): a real 404, not the app shell
+            raise HTTPException(404, "not found")
+        first = path.split("/", 1)[0]
+        if first not in ROUTES:                                  # an unknown page: the app shell so the router can show its own not-found page, with a true 404 status
+            return HTMLResponse(index, status_code=404)
         return HTMLResponse(index)
 
     return {"Content-Security-Policy": csp}

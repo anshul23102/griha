@@ -1,21 +1,9 @@
-import { Component, useEffect, useState, type ReactNode } from 'react'
+import { Component, Suspense, lazy, useEffect, useState, type ReactNode } from 'react'
 import { NavLink, Route, Routes, Link, useLocation } from 'react-router-dom'
 import { Moon, Sun, SignOut } from '@phosphor-icons/react'
 import { api, session, setSession } from './api'
 import { useI18n } from './i18n'
 import Platform from './pages/Platform'
-import Apply from './pages/Apply'
-import Case from './pages/Case'
-import Letter from './pages/Letter'
-import Mitc from './pages/Mitc'
-import Desk from './pages/Desk'
-import Simulator from './pages/Simulator'
-import Governance from './pages/Governance'
-import Coverage from './pages/Coverage'
-import Kfs from './pages/Kfs'
-import Privacy from './pages/Privacy'
-import Sources from './pages/Sources'
-import Ops from './pages/Ops'
 
 const navCls = ({ isActive }: { isActive: boolean }) =>
   'px-3 min-h-10 inline-flex items-center rounded-none font-display font-semibold text-[0.9375rem] whitespace-nowrap ' +
@@ -45,6 +33,30 @@ function useTheme() {
     setTheme(next)
   }
   return { theme, toggle }
+}
+
+const Apply = lazy(() => import('./pages/Apply'))
+const Case = lazy(() => import('./pages/Case'))
+const Letter = lazy(() => import('./pages/Letter'))
+const Mitc = lazy(() => import('./pages/Mitc'))
+const Desk = lazy(() => import('./pages/Desk'))
+const Simulator = lazy(() => import('./pages/Simulator'))
+const Governance = lazy(() => import('./pages/Governance'))
+const Ops = lazy(() => import('./pages/Ops'))
+const Coverage = lazy(() => import('./pages/Coverage'))
+const Sources = lazy(() => import('./pages/Sources'))
+const Privacy = lazy(() => import('./pages/Privacy'))
+const Kfs = lazy(() => import('./pages/Kfs'))
+function NotFound() {
+  const { t } = useI18n()
+  useEffect(() => { document.title = '404 | Griha' }, [])
+  return (
+    <div className="mx-auto max-w-[640px] py-16 grid gap-4">
+      <h1 className="m-0 text-3xl font-bold">{t('nf.title')}</h1>
+      <p className="m-0 text-ink2">{t('nf.body')}</p>
+      <p className="m-0"><Link to="/" className="underline text-blue font-display font-bold">{t('nf.home')}</Link></p>
+    </div>
+  )
 }
 
 export default function App() {
@@ -114,6 +126,7 @@ export default function App() {
       {offline && !letter && <div role="alert" className="bg-badbg text-ink border-b-2 border-bad px-4 py-2 text-center font-medium no-print">{t('app.offline')}</div>}
       <main id="main" className={letter ? 'flex-1' : 'flex-1 mx-auto w-full max-w-[1240px] px-4 py-6 sm:py-8'}>
         <Boundary title={t('app.crash')} body={t('app.crash.b')} label={t('app.reload')} key={loc.pathname}>
+        <Suspense fallback={<div className="py-12" role="status" aria-live="polite">{t('common.loading')}</div>}>
         <Routes>
           <Route path="/" element={<Platform />} />
           <Route path="/apply" element={<Apply />} />
@@ -128,7 +141,9 @@ export default function App() {
           <Route path="/coverage" element={<Coverage />} />
           <Route path="/sources" element={<Sources />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
         </Boundary>
       </main>
       {!letter && <footer className="no-print mx-auto w-full max-w-[1240px] px-4 pb-8 text-sm text-ink2">{t('common.synthetic')} <Link to="/privacy" className="underline">{t('nav.privacy')}</Link></footer>}

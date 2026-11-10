@@ -37,6 +37,14 @@ export default function Impact() {
           <tr><th scope="row" className="font-bold">{t('imp.r.hours')}</th><td className="r num font-bold">{Math.round(k.officer_hours_saved_per_month).toLocaleString('en-IN')} h</td><td>{tag('assumed')}</td><td className="text-ink2 text-sm">{t('imp.r.hours.n', { p: pct(k.share_of_officer_time_saved, 0) })}</td></tr>
           <tr><th scope="row" className="font-bold">{t('imp.r.save')}</th><td className="r num font-bold">{inr(k.cost_saved_per_month_inr)}</td><td>{tag('assumed')}</td><td className="text-ink2 text-sm">{t('imp.r.save.n')}</td></tr>
         </tbody></table></div>)}
+      {d && m.refer_breakdown && (
+        <div className="px-5 py-4 border-t border-faint grid gap-2">
+          <h3 className="m-0 text-base font-bold">{t('imp.humans')}</h3>
+          <p className="m-0 text-sm text-ink2 max-w-[80ch]">{t('imp.humans.sub')}</p>
+          <ul className="m-0 pl-5 grid gap-1 text-sm">
+            {Object.entries(m.refer_breakdown.by_queue).map(([q, v]) => <li key={q}><b>{t('queue.' + q)}</b>: <span className="num">{pct(v as number, 1)}</span>{q === 'CREDIT' && <> ({Object.entries(m.refer_breakdown.credit_reasons).map(([r, x]) => `${t('imp.cr.' + r)} ${pct(x as number, 1)}`).join(', ')})</>}</li>)}
+          </ul>
+        </div>)}
       <p className="m-0 px-5 py-3 text-sm text-ink2 border-t border-faint">{d ? t('imp.note', { src: m.source }) : ''} {t('imp.disclaimer')}</p>
     </Sheet>
   )

@@ -35,7 +35,7 @@ export default function Coverage() {
       see: [['Apply, step 4: upload a PDF', '/apply'], ['Case › Evidence › Property', '/']], proof: m ? `Property value within 10% of truth on ${pct(m.property.ppe10, 0)} of test cases.` : 'Valuation accuracy on the Governance page.',
       limit: 'Scanned or unfamiliar layouts need the local model, which is slow on small hardware. Land records are simulated.' },
     { n: 6, req: 'Compliance checks. Show how NHB regulations, Fair Practices Code and audit standards are built into the engine.',
-      built: 'Fourteen regulatory controls are evaluated and evidenced on every case: KYC, AML, STR signal, LTV cap, consent, Key Fact Statement and APR, pre-payment disclosure, grievance route, written reasons, fairness, human oversight, four-eyes, audit and encryption. Each shows its clause, how well we verified that source, and what the engine did here. Housing-finance regulation moved from the NHB to the RBI in 2019; we cite the RBI.',
+      built: 'Fifteen regulatory controls are evaluated and evidenced on every case: KYC, AML, STR signal, LTV cap, consent, Key Fact Statement and APR, pre-payment disclosure, grievance route, written reasons, fairness, human oversight, four-eyes, audit and encryption. Each shows its clause, how well we verified that source, and what the engine did here. Housing-finance regulation moved from the NHB to the RBI in 2019; we cite the RBI.',
       see: [['Case › Regulatory controls on this case', '/'], ['Governance › Regulatory mapping', '/governance']], proof: '15 controls per case (the applicant sees 11; AML, STR, EDD and four-eyes are withheld). Verified in RBI text: the HFC LTV caps (para 58), the Fair Practices Code, the KYC Directions and the DPDP Rules.',
       limit: 'The Fair Practices Code chapter was not read. Prepayment, KFS and FREE-AI points come from secondary sources, and several thresholds are internal. Each is labelled.' },
     { n: 7, req: 'Instant decisioning. Deliver a humanless decision instantly: approve, reject or refer.',
@@ -51,7 +51,7 @@ export default function Coverage() {
     ['Accuracy and feasibility', 'Calibration by decile, a comparison with simple baselines, and an honest note that the data is synthetic. Feasibility: shadow-mode pilot on a lender’s own history, then live.', '/governance', 'Governance'],
     ['Use of data', 'Bank cash flow, statement forensics, bureau, KYC and sanctions, land and title records, comparable sales, and a linked-applicant graph, all merged per case with lineage.', '/', 'Case evidence'],
     ['Explainability', 'Reasons, evidence folds, scorecard, SHAP drivers, Path to Yes, and a printable decision letter in English or Hindi.', '/', 'Case'],
-    ['Regulatory fit', 'Fourteen controls per case with clause and verification status, RBI as the regulator, DPDP-aligned consent and erasure.', '/governance', 'Governance'],
+    ['Regulatory fit', 'Fifteen controls per case with clause and verification status, RBI as the regulator, DPDP-aligned consent and erasure.', '/governance', 'Governance'],
     ['Scalability', 'Stateless stages, idempotent decisions, one worker measured on this machine, and the worker count for a million cases a day. Queue and database are designed, not built.', '/governance', 'Capacity'],
     ['Clarity of presentation', 'This page, a four-minute demo script, an architecture diagram, a deck and a live demo on the home page.', '/', 'Home'],
   ]

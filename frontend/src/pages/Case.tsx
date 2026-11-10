@@ -94,6 +94,8 @@ function DataRights({ c, onDone }: { c: J; onDone: () => void }) {
   return (
     <Sheet title={t('rights.title')} sub={t('rights.sub')}>
       <div className="px-5 py-4 grid gap-3">
+        {c.demo_note && <Notice tone="info">{c.demo_note}</Notice>}
+        {c.restated && <Notice tone="warn">{t('case.restated', { a: c.restated.recorded_outcome, b: c.restated.current_outcome })}</Notice>}
         {c.consent_withdrawn && <Notice tone="warn">{t('rights.withdrawn')}</Notice>}
         {ret && <Notice tone="info">{t('rights.retain', { date: c.retention.until })}</Notice>}
         <div className="flex flex-wrap gap-3">
