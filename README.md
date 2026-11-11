@@ -15,7 +15,7 @@ Home Loan and Loan Against Property decisions in milliseconds: **approve, reject
 ![Tests](https://img.shields.io/badge/tests-126%20backend%20%2B%2025%20browser-brightgreen)
 ![Data](https://img.shields.io/badge/applicant%20data-100%25%20synthetic-orange)
 
-**[Live demo](https://52-63-171-44.sslip.io)** · [Architecture](#architecture) · [Quick start](#quick-start) · [Regulatory coverage](#regulatory-coverage) · [Honest limits](#honest-limits)
+**[Live demo](https://d3l1fg79dbflis.cloudfront.net)** · [Architecture](#architecture) · [Quick start](#quick-start) · [Regulatory coverage](#regulatory-coverage) · [Honest limits](#honest-limits)
 
 *Built for the Hero Housing Fintech Challenge, Problem Statement 2, i-Hack at IIT Bombay E-Summit 2026.*
 

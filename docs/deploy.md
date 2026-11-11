@@ -88,3 +88,5 @@ Copy the backup folder off the machine, and keep `master.key` somewhere separate
 3. Wait until the distribution is *Deployed* (a few minutes). Its **Distribution domain name** (`dxxxxxxxxxxxx.cloudfront.net`) is the stable address. Check `https://<that-name>/api/health`.
 
 Traffic between CloudFront and the server is plain HTTP over the internet. That is acceptable here because all data is synthetic. For real data, put the origin behind HTTPS with its own certificate and restrict the security group to CloudFront.
+
+**Current setup (set up on 11 Nov 2026):** Elastic IP `52.63.171.44`, CloudFront distribution `griha` (Standard, pay-as-you-go, no WAF), origin `ec2-52-63-171-44.ap-southeast-2.compute.amazonaws.com` over HTTP on port 80, cache policy CachingDisabled, origin request policy AllViewer. The stable address is `https://d3l1fg79dbflis.cloudfront.net`; the `52-63-171-44.sslip.io` name still works as a second route. The console's "Billing: Missing permissions" notice on the distribution page is about reading plan details and is safe to ignore; do not click anything that upgrades the plan.
