@@ -73,3 +73,18 @@ docker exec griha python -m griha.backup --data-dir /data --dest /data/backups -
 Copy the backup folder off the machine, and keep `master.key` somewhere separate and access-controlled. A backup on the same disk does not protect against losing the disk.
 
 `GRIHA_RETENTION_HOLD=1` (the default) makes erasure wait for the five-year record-keeping period of the KYC Directions. The public demo sets it to `0` because every record in it is synthetic; a real deployment must leave it at `1`.
+
+## A stable, hard-to-block address: Elastic IP + CloudFront
+
+`<ip>.sslip.io` works, but it changes whenever the server's public IP changes, and some school and office networks block it as a dynamic-DNS name. An address on `*.cloudfront.net` is AWS's own, free at this scale, and stays the same.
+
+1. **Elastic IP (keeps the server's address fixed).** EC2 → Elastic IPs → *Allocate Elastic IP address* → *Allocate*. Select it → *Actions* → *Associate Elastic IP address* → choose the `griha` instance → *Associate*. The server's public IP changes once, to this one, and then never again. Re-run `ops/deploy-vm.sh <new-ip> ~/.ssh/griha.pem` so the sslip.io name matches.
+2. **CloudFront distribution.** CloudFront → *Create distribution*, and choose the **pay-as-you-go / free** option. Never click *Upgrade plan*.
+   - Origin domain: the instance's **Public IPv4 DNS** (`ec2-…compute.amazonaws.com`, from the EC2 instance page).
+   - Protocol: **HTTP only**, port 80. (The server's Caddy has a catch-all `:80` block for this; visitors still get HTTPS from CloudFront.)
+   - Viewer protocol policy: *Redirect HTTP to HTTPS*. Allowed methods: *GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE*.
+   - Cache policy: **CachingDisabled**. Origin request policy: **AllViewer**. (The API relies on the `Authorization` and `X-Case-Key` headers and must never be cached.)
+   - Web Application Firewall: leave off.
+3. Wait until the distribution is *Deployed* (a few minutes). Its **Distribution domain name** (`dxxxxxxxxxxxx.cloudfront.net`) is the stable address. Check `https://<that-name>/api/health`.
+
+Traffic between CloudFront and the server is plain HTTP over the internet. That is acceptable here because all data is synthetic. For real data, put the origin behind HTTPS with its own certificate and restrict the security group to CloudFront.

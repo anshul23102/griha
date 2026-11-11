@@ -37,7 +37,9 @@ fi
 sudo docker build -t griha ~/griha-src
 sudo docker rm -f griha >/dev/null 2>&1 || true
 sudo docker run -d --name griha --restart unless-stopped --env-file /etc/griha.env -v griha-data:/data -p 127.0.0.1:7860:7860 griha >/dev/null
-printf '%s {\n  reverse_proxy 127.0.0.1:7860\n}\n' "$HOST" | sudo tee /etc/caddy/Caddyfile >/dev/null
+# The named site gets HTTPS. The catch-all :80 block serves any other Host over plain HTTP: it is the origin for a CDN (for example CloudFront), which
+# terminates HTTPS for visitors itself. Requests for the named host are still redirected to HTTPS by Caddy.
+printf '%s {\n  reverse_proxy 127.0.0.1:7860\n}\n\n:80 {\n  reverse_proxy 127.0.0.1:7860\n}\n' "$HOST" | sudo tee /etc/caddy/Caddyfile >/dev/null
 sudo systemctl restart caddy
 REMOTE
 
