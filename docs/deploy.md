@@ -57,7 +57,8 @@ It prints a random `https://….trycloudflare.com` address. The Vite dev server 
 | `GRIHA_ORCHESTRATOR` | `auto`, `temporal`, `inline` | `auto` (`inline` in the image) |
 | `GRIHA_MASTER_KEY` | base64 32-byte key wrapping case keys | generated into the data dir |
 | `GRIHA_SECRET` | signing secret for sessions and case links | generated into the data dir |
-| `GRIHA_DEMO_PASSWORD` | password of the demo officer and admin (leave unset: the login screen prints the default) | `griha-demo` |
+| `GRIHA_DEMO_PASSWORD` | password of the demo officer (leave unset: the login screen prints the default) | `griha-demo` |
+| `GRIHA_ADMIN_PASSWORD` | password of the admin. The deploy script generates one on the server; read it with `ssh ... sudo grep GRIHA_ADMIN /etc/griha.env` and give it to judges privately | none (no admin account if unset on the public demo) |
 | `GRIHA_DATA_DIR` | audit log and key files | `backend/data` (`/data` in the image) |
 | `GRIHA_STATIC_DIR` | serve the built frontend from the API | unset (Vite serves it in development) |
 | `GRIHA_PUBLIC_DEMO` | show the synthetic-data banner and hosted wording | unset |
@@ -90,3 +91,14 @@ Copy the backup folder off the machine, and keep `master.key` somewhere separate
 Traffic between CloudFront and the server is plain HTTP over the internet. That is acceptable here because all data is synthetic. For real data, put the origin behind HTTPS with its own certificate and restrict the security group to CloudFront.
 
 **Current setup (set up on 11 Nov 2026):** Elastic IP `52.63.171.44`, CloudFront distribution `griha` (Standard, pay-as-you-go, no WAF), origin `ec2-52-63-171-44.ap-southeast-2.compute.amazonaws.com` over HTTP on port 80, cache policy CachingDisabled, origin request policy AllViewer. The stable address is `https://d3l1fg79dbflis.cloudfront.net`; the `52-63-171-44.sslip.io` name still works as a second route. The console's "Billing: Missing permissions" notice on the distribution page is about reading plan details and is safe to ignore; do not click anything that upgrades the plan.
+
+## Moving the server to India (Mumbai, ap-south-1)
+
+The Digital Lending Directions (para 13(iv)) require lending data to be stored in India. The demo holds synthetic data only, so Sydney is not a breach, but an India-region copy removes the question. Nothing needs migrating: the data is synthetic and the ten demo cases re-seed on first start.
+
+1. In the AWS console switch the region (top right) to **Asia Pacific (Mumbai) ap-south-1**, in the `griha` project.
+2. Follow *Launch the server* above in this region: a new key pair (call it `griha-mumbai`), the same security group rules (SSH from your IP, HTTP 80, HTTPS 443), Ubuntu 24.04, 20 GiB, a free-tier-eligible type.
+3. Allocate and associate an **Elastic IP** to it (as in the Elastic IP step above).
+4. `ops/deploy-vm.sh <mumbai-ip> ~/.ssh/griha-mumbai.pem` (about 10 to 15 minutes). Read the new admin password with `ssh -i ~/.ssh/griha-mumbai.pem ubuntu@<mumbai-ip> 'sudo grep GRIHA_ADMIN_PASSWORD /etc/griha.env'`.
+5. **CloudFront → your distribution → Origins → Edit:** change the origin domain to the Mumbai instance's *Public IPv4 DNS* (`ec2-…ap-south-1.compute.amazonaws.com`), keeping HTTP only, port 80. The `cloudfront.net` address does not change. Wait for *Deployed* and check `/api/health`.
+6. Only then stop the Sydney instance, **terminate** it if you no longer want it, and **release its Elastic IP** (an Elastic IP that is not attached to a running instance is charged).

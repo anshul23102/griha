@@ -12,12 +12,12 @@ const T = {
   en: { title: 'Key Facts Statement', sub: 'Format: RBI (NBFC - Responsible Business Conduct) Directions, 2025, Annex I', p1: 'Part 1: Interest rate and fees and charges', p2: 'Part 2: Other qualitative information',
     apr: 'Computation of the annual percentage rate (APR)', sch: 'Repayment schedule', prop: 'Proposal number', valid: 'Open for acceptance until', validb: 'At least three working days. The lender is bound by these terms if you accept in this time.',
     ack: 'I have read this statement, its contents were explained to me, and I understand it.', ackb: 'Record my acknowledgement', acked: 'Acknowledgement recorded', ref: 'reference', none: 'No offer was made on this case, so there is no statement.',
-    back: 'Back', print: 'Print', note: 'This statement is available in English and Hindi (use the language toggle). The Hindi text has not been reviewed by a legal translator; a lender must have it reviewed before use. The Directions require the statement in a language the borrower understands.', spread: 'spread', reset: 'reset', rp: 'Risk premium',
+    back: 'Back', print: 'Print', note: 'This statement is available in English and Hindi (use the language toggle). The Hindi text has not been reviewed by a legal translator; a lender must have it reviewed before use. The Directions require the statement in a language the borrower understands.', spread: 'spread', reset: 'reset', rp: 'Risk premium', revd: 'The Hindi text was reviewed by',
     lender: 'Lender to state', c: ['Month', 'Opening balance', 'Principal', 'Interest', 'Instalment'], impact: 'Change for a 25 bps change in the final rate', emi: 'Instalment', epi: 'Number of instalments' },
   hi: { title: 'मुख्य तथ्य विवरण (KFS)', sub: 'प्रारूप: RBI (NBFC - उत्तरदायी व्यवसाय आचरण) निर्देश, 2025, अनुलग्नक I', p1: 'भाग 1: ब्याज दर, शुल्क और प्रभार', p2: 'भाग 2: अन्य गुणात्मक जानकारी',
     apr: 'वार्षिक प्रतिशत दर (APR) की गणना', sch: 'चुकौती अनुसूची', prop: 'प्रस्ताव संख्या', valid: 'स्वीकार करने की अंतिम तिथि', validb: 'कम से कम तीन कार्य दिवस। इस अवधि में आप स्वीकार करें तो ऋणदाता इन शर्तों से बँधा है।',
     ack: 'मैंने यह विवरण पढ़ा है, इसकी सामग्री मुझे समझाई गई है, और मैं इसे समझता/समझती हूँ।', ackb: 'मेरी स्वीकृति दर्ज करें', acked: 'स्वीकृति दर्ज हुई', ref: 'संदर्भ', none: 'इस मामले में कोई प्रस्ताव नहीं है, इसलिए कोई विवरण नहीं।',
-    back: 'वापस', print: 'प्रिंट', note: 'यह विवरण हिंदी और अंग्रेज़ी में उपलब्ध है (भाषा बटन से बदलें)। हिंदी पाठ की किसी विधिक अनुवादक ने समीक्षा नहीं की है; उपयोग से पहले ऋणदाता को समीक्षा करानी होगी। निर्देशों के अनुसार विवरण उधारकर्ता की समझ की भाषा में होना चाहिए।', spread: 'स्प्रेड', reset: 'पुनर्निर्धारण', rp: 'जोखिम प्रीमियम',
+    back: 'वापस', print: 'प्रिंट', note: 'यह विवरण हिंदी और अंग्रेज़ी में उपलब्ध है (भाषा बटन से बदलें)। हिंदी पाठ की किसी विधिक अनुवादक ने समीक्षा नहीं की है; उपयोग से पहले ऋणदाता को समीक्षा करानी होगी। निर्देशों के अनुसार विवरण उधारकर्ता की समझ की भाषा में होना चाहिए।', spread: 'स्प्रेड', reset: 'पुनर्निर्धारण', rp: 'जोखिम प्रीमियम', revd: 'हिंदी पाठ की समीक्षा की गई:',
     lender: 'ऋणदाता बताएगा', c: ['माह', 'आरंभिक शेष', 'मूलधन', 'ब्याज', 'किस्त'], impact: 'अंतिम दर में 25 आधार अंकों के बदलाव का असर', emi: 'किस्त', epi: 'किस्तों की संख्या' },
 }
 
@@ -77,7 +77,7 @@ export default function Kfs() {
         <div className="no-print mt-8 border-t-2 border-faint pt-5 grid gap-3">
           <p className="m-0 font-medium">{x.ack}</p>
           {c.kfs_ack ? <Notice tone="ok" title={x.acked}>{x.ref} <span className="mono">{c.kfs_ack.reference}</span> · {c.kfs_ack.at}</Notice> : <div><Btn disabled={busy} onClick={ack}>{x.ackb}</Btn></div>}
-          <Notice>{x.note}</Notice>
+          <Notice>{k.hi?.review?.reviewed ? `${x.revd} ${k.hi.review.reviewer} (${k.hi.review.qualification}), ${k.hi.review.date}.` : x.note}</Notice>
         </div>
       </article>
     </div>

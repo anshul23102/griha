@@ -338,12 +338,15 @@ def _validity(created: float, days: int = 3) -> str:
     return d.isoformat()
 
 
+SEED_PREFIX = "5EED"      # hex-valid, so the id still matches the case-id pattern
+
+
 async def _seed_demo() -> None:
     """A hosted demo that opens empty looks broken: the desk, the latest-decisions strip and the Operations numbers have nothing in them.
     On first start the ten prepared synthetic scenarios are run through the real engine once. They are ordinary cases and are labelled with their scenario."""
-    for sid, sc in STATE["scen"].items():
+    for n, (sid, sc) in enumerate(STATE["scen"].items(), 1):
         a = sc["app"].model_copy(deep=True)
-        a.case_id = "A-" + uuid.uuid4().hex[:8].upper()
+        a.case_id = f"A-{SEED_PREFIX}{n:04X}"                # fixed ids, so the fixtures can be told apart and protected
         try:
             await create_case(a, sid, True)
         except Exception:
@@ -700,6 +703,8 @@ def erase_case(case_id: str, b: EraseBody, user=Depends(auth.require("admin"))):
     c = _get_case(case_id)
     if not c:
         raise HTTPException(404, "case not found")
+    if PUBLIC_DEMO and case_id.startswith("A-" + SEED_PREFIX):
+        raise HTTPException(403, "The prepared demo cases cannot be erased on the public demo. Create your own case and erase that one.")
     if c.get("erased"):
         raise HTTPException(409, "already erased")
     until = _retain_until(c["created"])

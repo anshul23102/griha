@@ -12,7 +12,7 @@ Home Loan and Loan Against Property decisions in milliseconds: **approve, reject
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![Temporal](https://img.shields.io/badge/Temporal-workflows-000000)
-![Tests](https://img.shields.io/badge/tests-126%20backend%20%2B%2025%20browser-brightgreen)
+![Tests](https://img.shields.io/badge/tests-133%20backend%20%2B%2025%20browser-brightgreen)
 ![Data](https://img.shields.io/badge/applicant%20data-100%25%20synthetic-orange)
 
 **[Live demo](https://d3l1fg79dbflis.cloudfront.net)** · [Architecture](#architecture) · [Quick start](#quick-start) · [Regulatory coverage](#regulatory-coverage) · [Honest limits](#honest-limits)
@@ -100,7 +100,7 @@ Griha is a working answer to one question: **can an underwriting engine be fast,
 | Document AI | Deterministic text parser by default; optional local model through a typed Pydantic AI agent |
 | Frontend | React 19, Vite 8, Tailwind CSS v4, TypeScript, React Router, Hind and Azeret Mono fonts |
 | Observability | Prometheus, Grafana (provisioned dashboard), `prometheus-client` |
-| Quality | pytest (126), Playwright with axe accessibility checks (25), bandit, pip-audit, pnpm audit, GitHub Actions |
+| Quality | pytest (133), Playwright with axe accessibility checks (25), bandit, pip-audit, pnpm audit, GitHub Actions |
 | Deployment | One Docker image, Caddy for HTTPS, AWS EC2 |
 
 ## Quick start
@@ -154,9 +154,9 @@ docker run -p 7860:7860 griha             # http://localhost:7860, inline mode, 
 | Role | Email | Password |
 |---|---|---|
 | Officer | `officer@griha.demo` | `griha-demo` |
-| Admin (Credit Head) | `admin@griha.demo` | `griha-demo` |
+| Admin (Credit Head) | `admin@griha.demo` | `griha-demo` on a local build. **On the public demo it is private**, given to judges with the submission |
 
-These are demo credentials for synthetic data only. Set `GRIHA_DEMO_PASSWORD` to change the password.
+These are demo credentials for synthetic data only. Set `GRIHA_DEMO_PASSWORD` to change the officer password and `GRIHA_ADMIN_PASSWORD` to give the admin its own. When `GRIHA_PUBLIC_DEMO=1` and no admin password is set, the admin account does not exist. The prepared demo cases cannot be erased on the public demo.
 
 ### A two-minute tour
 
@@ -182,7 +182,9 @@ These are demo credentials for synthetic data only. Set `GRIHA_DEMO_PASSWORD` to
 | `GRIHA_API_LIMIT`, `GRIHA_LOGIN_LIMIT` | see `config.py` | Rate limits |
 | `GRIHA_LLM_PROVIDER`, `GRIHA_OLLAMA_MODEL` | off | Optional local document reader (for example `qwen2.5:3b` through [Ollama](https://ollama.com)) |
 | `GRIHA_WARM_IMPACT` | `1` | Builds the 1,000-case replay at startup so the first visitor does not wait |
-| `GRIHA_DEMO_PASSWORD` | `griha-demo` | Demo sign-in password |
+| `GRIHA_DEMO_PASSWORD` | `griha-demo` | Demo officer sign-in password |
+| `GRIHA_ADMIN_PASSWORD` | the demo password locally; **required** on the public demo | Admin sign-in password |
+| `GRIHA_SEED_DEMO` | `1` on the public demo | Run the ten prepared scenarios on first start |
 
 ## How one decision is made
 
@@ -332,7 +334,7 @@ Interactive OpenAPI docs are served at `/docs` (the hosted demo allows the Swagg
 ## Testing and CI
 
 ```bash
-cd backend && uv run pytest -q            # 126 tests; the Temporal tests boot their own dev server and skip if the CLI is absent
+cd backend && uv run pytest -q            # 133 tests; the Temporal tests boot their own dev server and skip if the CLI is absent
 cd frontend && npx tsc -b                 # the real typecheck
 cd frontend && GRIHA_API_LIMIT=5000 ../ops/start.sh && pnpm e2e   # 25 browser tests with axe accessibility checks
 ```
@@ -360,7 +362,7 @@ backend/
   policy/v1.yaml    18 rules and the regulatory map, hashed into every decision
   artifacts/        trained models, metrics, real-data validation
   tools/            loadtest, validate_public (real data), validate_freddie (local only)
-  tests/            126 tests
+  tests/            133 tests
 frontend/           React app, Playwright e2e and screenshot scripts
 ops/                start/stop scripts, Prometheus and Grafana config, VM deploy script
 docs/               architecture, model card, security, scalability, deploy, data licensing, design spec, video script
@@ -392,13 +394,13 @@ Judging criteria and where each is addressed: accuracy and feasibility (model ca
 
 ## Honest limits
 
-- **No Indian loan-level data.** Accuracy on Indian borrowers is unknown. A lender must retrain and validate on its own book; calibration especially. A private local check on US mortgage data exists and is deliberately not published, pending the data provider's written confirmation.
+- **No Indian loan-level data we could use.** (The public sets we found are listed, with reasons, as rejected on the Data sources page.) Accuracy on Indian borrowers is unknown, and the synthetic default rate is several times the real Indian housing NPA ratio (about 0.5% for banks at March 2026, a figure from press reports of the RBI's June 2026 Financial Stability Report that we have not checked against the RBI text). A lender must retrain and re-set the cut-offs on its own loans: `python -m griha.byod --csv book.csv` validates the file, retrains the same monotone calibrated model, reports out-of-sample AUC, KS and calibration, and writes a separate artifact set; the shipped model is never overwritten. A private local check on US mortgage data exists and is deliberately not published, pending the data provider's written confirmation.
 - **Policy cut-offs are illustrative** (FOIR, age, bureau, probability-of-default). The LTV caps are from the HFC Directions. Items only a lender can supply, such as the penal-charge amount, reset frequency and grievance officer, appear as "Lender to state". They are never invented.
-- **Hindi text is unreviewed.** The Hindi KFS and privacy notice were written for this prototype and need a legal translator before use.
+- **Hindi text is unreviewed.** The Hindi KFS and privacy notice were written for this prototype. The DPDP terms follow the Hindi text of the Gazette; the RBI terms are our own choices. [`docs/hindi-review.md`](docs/hindi-review.md) lays every sentence beside its English with a glossary, and the app only stops saying "unreviewed" when a named, qualified reviewer signs `backend/griha/data/hindi_review.json`.
 - **Sanctions coverage is the UN list only.** OFAC, EU, UK and MHA lists and PEP data need a licensed feed.
 - **The breach register tracks the three notices; it does not send them.**
 - **Scale is measured, not proven.** Throughput numbers are from a laptop and a 1 GB server, on bursts and one sustained run.
-- **The hosted demo is in Sydney, in one process.** It carries synthetic data only.
+- **The hosted demo is in Sydney, in one process.** It carries synthetic data only. `docs/deploy.md` has the steps to move it to Mumbai (ap-south-1) behind the same address.
 - **The local document-reading model is slow** (about 20 tokens a second on an 8 GB laptop) and optional; the text parser is the default.
 
 ## Data sources and licences

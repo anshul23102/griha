@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-ARTIFACTS = ROOT / "artifacts"
+ARTIFACTS = Path(os.environ.get("GRIHA_ARTIFACTS_DIR", ROOT / "artifacts"))   # a lender's own retrained models go in another folder (see griha/byod.py)
 POLICY_PATH = ROOT / "policy" / "v1.yaml"
 DATA_DIR = Path(os.environ.get("GRIHA_DATA_DIR", ROOT / "data"))
 AUDIT_PATH = DATA_DIR / "audit.db"     # SQLite; an older audit.jsonl in the same folder is imported once

@@ -1,0 +1,8 @@
+{
+  "reviewed": false,
+  "reviewer": null,
+  "qualification": null,
+  "date": null,
+  "scope": "Key Facts Statement (Annex I) and the privacy notice, Hindi text",
+  "how_to_sign_off": "A qualified legal translator reads docs/hindi-review.md, corrects any wording in griha/pricing_hi.py and frontend/src/pages/Privacy.tsx, then sets reviewed to true with their name, qualification and the date. Only then does the app stop saying the Hindi is unreviewed."
+}

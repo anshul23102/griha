@@ -12,7 +12,7 @@ You can expect an acknowledgement within a few days. This is a student project w
 
 In scope: the API, the case-access model (capability keys), encryption and key handling, the audit chain, input handling, and the Docker image.
 
-Out of scope: the demo credentials (`officer@griha.demo`, `admin@griha.demo`, password `griha-demo`) which are published on purpose and only protect synthetic data; denial of service against the small hosted demo; findings that need physical access to the host.
+Out of scope: the published demo officer credentials (`officer@griha.demo`, password `griha-demo`), which only protect synthetic data. The public demo's admin password is private; denial of service against the small hosted demo; findings that need physical access to the host.
 
 ## Supported versions
 

@@ -72,3 +72,34 @@ def test_impact_reports_where_the_humans_come_in():
         m = c.get("/api/impact").json()["measured"]["refer_breakdown"]
         assert set(m["by_queue"]) <= {"CREDIT", "FRAUD", "PROPERTY", "DATA"} and abs(sum(m["by_queue"].values()) - c.get("/api/impact").json()["measured"]["refer_rate"]) < 0.002
         assert m["credit_reasons"]
+
+
+def test_public_demo_admin_has_its_own_private_password_or_does_not_exist(monkeypatch):
+    import importlib
+
+    from griha import auth
+    try:
+        monkeypatch.setenv("GRIHA_PUBLIC_DEMO", "1")
+        monkeypatch.delenv("GRIHA_ADMIN_PASSWORD", raising=False)
+        importlib.reload(auth)
+        assert "admin@griha.demo" not in auth.USERS and auth.login("admin@griha.demo", "griha-demo") is None      # fail closed: no admin at all
+        assert auth.login("officer@griha.demo", "griha-demo")["role"] == "underwriter"                            # the published officer login still works
+        monkeypatch.setenv("GRIHA_ADMIN_PASSWORD", "a-private-secret-123")
+        importlib.reload(auth)
+        assert auth.login("admin@griha.demo", "griha-demo") is None and auth.login("admin@griha.demo", "a-private-secret-123")["role"] == "admin"
+        assert auth.login("officer@griha.demo", "a-private-secret-123") is None
+    finally:
+        monkeypatch.undo()
+        importlib.reload(auth)
+        assert auth.login("admin@griha.demo", "griha-demo")                                                       # local default restored
+
+
+def test_prepared_demo_cases_cannot_be_erased_on_the_public_demo(monkeypatch):
+    with KeyedClient(app) as c:
+        asyncio.run(api._seed_demo())
+        monkeypatch.setattr(api, "PUBLIC_DEMO", True)
+        h = {"Authorization": "Bearer " + c.post("/api/login", json={"email": "admin@griha.demo", "password": "griha-demo"}).json()["token"], "X-Case-Key": ""}
+        seeded = f"A-{api.SEED_PREFIX}0001"
+        assert seeded in STATE["cases"]
+        r = c.post(f"/api/cases/{seeded}/erase", json={"reason": "a visitor trying to wipe the fixtures"}, headers=h)
+        assert r.status_code == 403 and STATE["cases"][seeded].get("erased") is not True

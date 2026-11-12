@@ -4,7 +4,7 @@ import { api, type J } from '../api'
 import { useI18n } from '../i18n'
 import { Board, Notice, Sheet, Spinner } from '../components/kit'
 
-const GROUPS: [string, string][] = [['real', 'src.g.real'], ['pending', 'src.g.pending'], ['synthetic', 'src.g.synthetic'], ['internal', 'src.g.internal'], ['rejected', 'src.g.rejected']]
+const GROUPS: [string, string][] = [['real', 'src.g.real'], ['secondary', 'src.g.secondary'], ['pending', 'src.g.pending'], ['synthetic', 'src.g.synthetic'], ['internal', 'src.g.internal'], ['rejected', 'src.g.rejected']]
 
 function Status({ s }: { s: string }) {
   const { t } = useI18n()

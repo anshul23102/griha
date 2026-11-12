@@ -25,6 +25,7 @@ Rank applicants by probability of default and estimate property value to support
 - A PSI drift monitor compares live applications to the training reference once at least 100 distinct applicants exist.
 
 ## Limits
+- **Replace the model with your own.** `python -m griha.byod` retrains and validates the same model on a lender's loan book (12 inputs plus a default flag) and writes a separate artifact set; set `GRIHA_ARTIFACTS_DIR` to use it, and re-set `pd_approve_max` and `pd_reject_min` in the policy file, which were tuned to the synthetic default rate.
 - Synthetic training data, so no claim of real-world accuracy.
 - Policy cut-offs are illustrative; the lender's own values were not available.
 - A US loan-level validation was run privately; it is unpublished until the data provider clears it.

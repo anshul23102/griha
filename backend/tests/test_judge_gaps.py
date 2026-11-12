@@ -44,3 +44,17 @@ def test_real_data_validation_record_exists_and_states_its_limits():
         assert r["gbm_monotone"]["auc"] > 0.7                                        # ranks real defaults
         assert abs(r["gbm_monotone"]["auc"] - r["gbm_free"]["auc"]) < 0.02            # the monotone constraints cost almost nothing
         assert r["calibration_gap_mean_abs"] < 0.03                                   # isotonic probabilities match observed rates out of sample
+
+
+def test_hindi_review_flag_comes_only_from_a_signed_file(tmp_path, monkeypatch):
+    from griha import pricing_hi
+    pricing_hi.review_status.cache_clear()
+    assert pricing_hi.review_status()["reviewed"] is False                              # shipped state: unreviewed
+    f = tmp_path / "r.json"
+    monkeypatch.setattr(pricing_hi, "REVIEW_FILE", f)
+    for body in ('{"reviewed": true}', '{"reviewed": true, "reviewer": "A. Rao"}', "not json"):
+        f.write_text(body); pricing_hi.review_status.cache_clear()
+        assert pricing_hi.review_status()["reviewed"] is False                          # a bare flag is not a sign-off: name, qualification and date are needed
+    f.write_text('{"reviewed": true, "reviewer": "A. Rao", "qualification": "Hindi legal translator", "date": "2026-12-01"}'); pricing_hi.review_status.cache_clear()
+    assert pricing_hi.review_status()["reviewed"] is True and pricing_hi.review_status()["reviewer"] == "A. Rao"
+    pricing_hi.review_status.cache_clear()

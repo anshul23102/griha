@@ -57,12 +57,19 @@ def case_key(case_id: str) -> str:
 _DEMO_PW = os.environ.get("GRIHA_DEMO_PASSWORD", "griha-demo")
 
 
-def _user(role: str, name: str) -> dict:
+# The admin account can erase cases, log breaches and override fraud holds. On the PUBLIC demo its password is NOT the published one: it is set in the server's
+# environment (GRIHA_ADMIN_PASSWORD) and given to judges privately. If it is not set there, the admin account does not exist at all (fail closed).
+_ADMIN_PW = os.environ.get("GRIHA_ADMIN_PASSWORD") or (None if os.environ.get("GRIHA_PUBLIC_DEMO") == "1" else _DEMO_PW)
+
+
+def _user(role: str, name: str, password: str) -> dict:
     salt = secrets.token_bytes(16)          # a fresh salt per user, so equal passwords never share a hash
-    return {"role": role, "salt": salt, "pw": _hash(_DEMO_PW, salt), "name": name}
+    return {"role": role, "salt": salt, "pw": _hash(password, salt), "name": name}
 
 
-USERS = {"officer@griha.demo": _user("underwriter", "Credit Officer"), "admin@griha.demo": _user("admin", "Credit Head")}
+USERS = {"officer@griha.demo": _user("underwriter", "Credit Officer", _DEMO_PW)}
+if _ADMIN_PW:
+    USERS["admin@griha.demo"] = _user("admin", "Credit Head", _ADMIN_PW)
 _FAILS: dict[str, list[float]] = {}
 LOCKOUT_AFTER, LOCKOUT_SECONDS = 5, 300
 _DUMMY = {"salt": secrets.token_bytes(16)}

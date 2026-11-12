@@ -13,9 +13,11 @@ def test_every_real_source_has_a_link_a_date_and_a_status():
     reg = sources.registry()
     assert len({r["id"] for r in reg}) == len(reg)
     for r in reg:
-        assert r["status"] in {"verified", "pending", "synthetic", "internal", "rejected"} and r["name"] and r["used_for"]
+        assert r["status"] in {"verified", "secondary", "pending", "synthetic", "internal", "rejected"} and r["name"] and r["used_for"]
         if r["group"] == "real":
             assert r["url"].startswith("https://") and r["retrieved"] and r["status"] == "verified"
+        if r["status"] == "secondary":                 # reported by a secondary source: never in the verified group, always linked and labelled as such
+            assert r["group"] == "secondary" and r["url"].startswith("https://") and "not read" in r["publisher"] or "not been checked" in r["detail"]
         if r["status"] in {"synthetic", "internal"}:
             assert r["url"] == ""                      # nothing is dressed up as an external source
 

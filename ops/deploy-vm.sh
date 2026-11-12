@@ -34,6 +34,11 @@ if [ ! -f /etc/griha.env ]; then
   printf 'GRIHA_MASTER_KEY=%s\nGRIHA_SECRET=%s\n' "$M" "$S" | sudo tee /etc/griha.env >/dev/null
   sudo chmod 600 /etc/griha.env
 fi
+# The admin password is separate from the published officer password. Created once; read it with: sudo grep GRIHA_ADMIN_PASSWORD /etc/griha.env
+if ! sudo grep -q '^GRIHA_ADMIN_PASSWORD=' /etc/griha.env; then
+  A=$(python3 -c 'import secrets;print(secrets.token_urlsafe(12))')
+  printf 'GRIHA_ADMIN_PASSWORD=%s\n' "$A" | sudo tee -a /etc/griha.env >/dev/null
+fi
 sudo docker build -t griha ~/griha-src
 sudo docker rm -f griha >/dev/null 2>&1 || true
 sudo docker run -d --name griha --restart unless-stopped --env-file /etc/griha.env -v griha-data:/data -p 127.0.0.1:7860:7860 griha >/dev/null

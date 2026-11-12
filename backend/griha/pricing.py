@@ -85,7 +85,9 @@ def build_kfs(principal: float, rate: float, n: int, product: str = "HL", propos
 
 def _hindi(principal, rate, n, product, fee, pay, base_disclosures=None) -> dict:
     from .pricing_hi import annex_i_hi, disclosures_hi   # imported here: pricing_hi imports this module
-    return {"lang": "hi", "reviewed_by_legal_translator": False, "annex_i": annex_i_hi(principal, rate, n, product, fee, pay),
+    from .pricing_hi import review_status
+    rs = review_status()
+    return {"lang": "hi", "reviewed_by_legal_translator": rs["reviewed"], "review": rs, "annex_i": annex_i_hi(principal, rate, n, product, fee, pay),
             "other_disclosures": disclosures_hi(principal, rate, n, product, fee)}
 
 
