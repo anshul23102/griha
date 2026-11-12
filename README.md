@@ -366,7 +366,7 @@ backend/
   tests/            137 tests
 frontend/           React app, Playwright e2e and screenshot scripts
 ops/                start/stop scripts, Prometheus and Grafana config, VM deploy script
-docs/               architecture, model card, security, scalability, deploy, data licensing, design spec, video script
+docs/               submission deck (Griha-deck.pdf, source in docs/deck), architecture, model card, security, scalability, deploy, data licensing, design spec, video script
 PRODUCT.md, DESIGN.md   who it is for and the visual system
 ```
 
