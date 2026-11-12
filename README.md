@@ -400,7 +400,7 @@ Judging criteria and where each is addressed: accuracy and feasibility (model ca
 - **Sanctions coverage is the UN list only.** OFAC, EU, UK and MHA lists and PEP data need a licensed feed.
 - **The breach register tracks the three notices; it does not send them.**
 - **Scale is measured, not proven.** Throughput numbers are from a laptop and a 1 GB server, on bursts and one sustained run.
-- **The hosted demo is in Sydney, in one process.** It carries synthetic data only. `docs/deploy.md` has the steps to move it to Mumbai (ap-south-1) behind the same address.
+- **The hosted demo is in Sydney, in one process.** It carries synthetic data only. The AWS free plan is locked to the region it was created in, so a move to India needs a paid plan or another provider; `docs/deploy.md` has the steps for when one is available.
 - **The local document-reading model is slow** (about 20 tokens a second on an 8 GB laptop) and optional; the text parser is the default.
 
 ## Data sources and licences

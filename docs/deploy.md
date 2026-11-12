@@ -94,6 +94,8 @@ Traffic between CloudFront and the server is plain HTTP over the internet. That 
 
 ## Moving the server to India (Mumbai, ap-south-1)
 
+**Not possible on the AWS free plan.** We tried on 12 Nov 2026: the console answers "Region Asia Pacific (Mumbai) unavailable ... upgrade your plan first". A free-plan account is locked to the region it was created in (Sydney here). Moving needs a paid plan, a different account, or another provider with an India region. The demo stays in Sydney, which is acceptable because it holds synthetic data only. The steps below apply once a region in India is available.
+
 The Digital Lending Directions (para 13(iv)) require lending data to be stored in India. The demo holds synthetic data only, so Sydney is not a breach, but an India-region copy removes the question. Nothing needs migrating: the data is synthetic and the ten demo cases re-seed on first start.
 
 1. In the AWS console switch the region (top right) to **Asia Pacific (Mumbai) ap-south-1**, in the `griha` project.
