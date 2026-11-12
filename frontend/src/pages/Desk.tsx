@@ -35,7 +35,7 @@ export default function Desk() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Board hi="ऋणदाता डेस्क" en="Lender desk" aside={<>{user.name}<br />{t('role.' + user.role)}{stats && stats.engine_ms_median !== null && <><br />{t('desk.median')} {stats.engine_ms_median} ms</>}</>}>
+      <Board hi="ऋणदाता डेस्क" en="Lender desk" aside={<>{user.email ?? user.name}<br />{t('role.' + user.role)}{stats && stats.engine_ms_median !== null && <><br />{t('desk.median')} {stats.engine_ms_median} ms</>}</>}>
         <p className="m-0 mt-2 font-medium max-w-[60ch]">{t('desk.lead')}</p>
       </Board>
       {err && <Notice tone="bad">{err}</Notice>}

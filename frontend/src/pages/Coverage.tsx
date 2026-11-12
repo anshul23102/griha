@@ -19,7 +19,7 @@ export default function Coverage() {
       see: [['Case › Evidence › Data sources and documents', '/'], ['Apply, step 4: outage test', '/apply']], proof: '4 sources per case, each timed and traced to the stages that use it.',
       limit: 'Bureau, KYC and land records are simulated and shaped like the real feeds; there is no live Account Aggregator, bureau or KYC access. The sanctions screen is real: it runs against the UN Security Council Consolidated List (10 Nov 2026 snapshot).' },
     { n: 2, req: 'Eligibility and policy. Assess eligibility in real time for Home Loans and LAP and validate each case against credit policy.',
-      built: 'An instant "what can I borrow" check and, per case, eligibility sizing: FOIR at a stress rate, tiered LTV caps, tenure caps and ticket limits for both products. Eighteen policy rules written as code, hashed, traced line by line. A smaller counter-offer replaces a flat no.',
+      built: 'An instant "what can I borrow" check and, per case, eligibility sizing: FOIR at a stress rate, tiered LTV caps, tenure caps and ticket limits for both products. Nineteen policy rules written as code, hashed, traced line by line. A smaller counter-offer replaces a flat no.',
       see: [['Home › What can I borrow?', '/'], ['Case › Policy trace', '/']], proof: ms ? `Median engine time ${ms} ms per case.` : 'Median engine time shown on the home page.',
       limit: 'FOIR, age and cut-offs are illustrative. Hero Housing’s real credit policy was not available.' },
     { n: 3, req: 'Fraud detection and KYC/AML. Detect fraud and meet KYC/AML requirements without manual review.',

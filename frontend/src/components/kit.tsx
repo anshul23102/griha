@@ -9,7 +9,7 @@ export function Board({ hi, en, aside, children }: { hi: string; en: string; asi
     <div>
     <header className="board">
       <div className="board-inner">
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 max-[719px]:basis-full">
           <h1 className="l1" lang={lang === 'hi' ? 'hi' : 'en'}>{a}</h1>
           <div className="l2" lang={lang === 'hi' ? 'en' : 'hi'} aria-hidden={lang === 'hi' ? undefined : true}>{b}</div>
           {children}
@@ -119,10 +119,10 @@ export function Flap({ word }: { word: string }) {
 export type StationState = 'wait' | 'run' | 'ok' | 'warn' | 'fail'
 export function RouteStrip({ stations, label }: { stations: { key: string; label: string; state: StationState; ms?: number }[]; label: string }) {
   return (
-    <ol className="route list-none m-0 p-0 flex justify-between gap-0.5 sm:gap-1 pb-1" aria-label={label}>
-      <span className="track" aria-hidden />
+    <ol className="route list-none m-0 p-0 w-full grid grid-cols-4 gap-x-1 gap-y-3 sm:flex sm:justify-between sm:gap-1 pb-1" aria-label={label}>
+      <span className="track hidden sm:block" aria-hidden />
       {stations.map((s, i) => (
-        <li key={s.key} className="relative z-[1] flex flex-col items-center gap-1 sm:gap-1.5 min-w-0 flex-1">
+        <li key={s.key} className="relative z-[1] flex flex-col items-center gap-1 sm:gap-1.5 min-w-0 sm:flex-1">
           <span className="stn" data-state={s.state}>
             {s.state === 'ok' && <Check size={16} weight="bold" aria-hidden />}
             {s.state === 'fail' && <X size={16} weight="bold" aria-hidden />}

@@ -76,22 +76,31 @@ _DUMMY = {"salt": secrets.token_bytes(16)}
 _DUMMY["pw"] = _hash(secrets.token_hex(8), _DUMMY["salt"])
 
 
-def locked(email: str) -> int:
-    """Seconds left on an account lockout (per account, on top of the per-IP rate limit)."""
+def _key(email: str, ip: str) -> str:
+    return f"{email.lower()}|{ip}"
+
+
+def locked(email: str, ip: str = "-") -> int:
+    """Seconds left on a lockout. It is per account AND per caller: five wrong passwords from one address lock that address out of that account, and
+    nobody else. (A lockout per account alone lets any stranger lock the published demo accounts for everyone.) The per-address login rate limit still applies."""
     now = time.time()
-    fails = [t for t in _FAILS.get(email.lower(), []) if now - t < LOCKOUT_SECONDS]
-    _FAILS[email.lower()] = fails
+    k = _key(email, ip)
+    fails = [t for t in _FAILS.get(k, []) if now - t < LOCKOUT_SECONDS]
+    if fails:
+        _FAILS[k] = fails
+    else:
+        _FAILS.pop(k, None)                   # forget the key: the table must not grow with every address that ever failed
     return int(LOCKOUT_SECONDS - (now - fails[0])) if len(fails) >= LOCKOUT_AFTER else 0
 
 
-def login(email: str, password: str) -> dict | None:
+def login(email: str, password: str, ip: str = "-") -> dict | None:
     u = USERS.get(email.lower())
     ref = u or _DUMMY                         # same work for unknown accounts: no user enumeration by timing
     ok = hmac.compare_digest(ref["pw"], _hash(password, ref["salt"])) and u is not None
     if not ok:
-        _FAILS.setdefault(email.lower(), []).append(time.time())
+        _FAILS.setdefault(_key(email, ip), []).append(time.time())
         return None
-    _FAILS.pop(email.lower(), None)
+    _FAILS.pop(_key(email, ip), None)
     body = base64.urlsafe_b64encode(json.dumps({"sub": email, "role": u["role"], "exp": time.time() + 8 * 3600, "jti": secrets.token_hex(8)}).encode()).decode()
     sig = hmac.new(SECRET, body.encode(), hashlib.sha256).hexdigest()
     return {"token": f"{body}.{sig}", "role": u["role"], "name": u["name"], "email": email}

@@ -335,6 +335,22 @@ await test('unknown address shows a real not-found page, and the home page says 
   await p.context().close()
 })
 
+await test('phone: route-strip station labels never overlap and the strip uses the full width', async () => {
+  const p = await newPage({ viewport: { width: 390, height: 844 } }); await p.goto(BASE + '/')
+  const made = await p.evaluate(async () => (await (await fetch('/api/applications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scenario_id: 'salaried_approve' }) })).json()))
+  await p.goto(BASE + `/case/${made.case_id}#k=${made.access_key}`); await p.locator('ol.route li').first().waitFor({ timeout: 15000 })
+  const r = await p.evaluate(() => {
+    const strip = document.querySelector('ol.route'); const sr = strip.getBoundingClientRect(); const parent = strip.parentElement.getBoundingClientRect()
+    const labels = [...strip.querySelectorAll('li > span.font-display')].map(e => e.getBoundingClientRect())
+    let overlaps = 0
+    for (let i = 0; i < labels.length; i++) for (let j = i + 1; j < labels.length; j++) { const a = labels[i], b = labels[j]; if (a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5) overlaps++ }
+    const clipped = labels.filter(l => l.right > innerWidth + 0.5 || l.left < -0.5).length
+    return { overlaps, clipped, widthShare: sr.width / parent.width, n: labels.length }
+  })
+  ok(r.n >= 7, 'stations present: ' + r.n); ok(r.overlaps === 0, 'labels overlap: ' + r.overlaps); ok(r.clipped === 0, 'labels run off screen'); ok(r.widthShare > 0.95, 'strip fills its box: ' + r.widthShare.toFixed(2))
+  await p.context().close()
+})
+
 await test('phone width: no sideways scroll on any main page', async () => {
   const p = await newPage({ viewport: { width: 375, height: 800 } })
   for (const path of ['/', '/apply', '/ops', '/coverage', '/governance']) {

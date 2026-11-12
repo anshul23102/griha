@@ -103,3 +103,52 @@ def test_prepared_demo_cases_cannot_be_erased_on_the_public_demo(monkeypatch):
         assert seeded in STATE["cases"]
         r = c.post(f"/api/cases/{seeded}/erase", json={"reason": "a visitor trying to wipe the fixtures"}, headers=h)
         assert r.status_code == 403 and STATE["cases"][seeded].get("erased") is not True
+
+
+# ---- third audit: real client address, per-caller lockout, trimmed public ops ----
+def test_client_ip_trusts_only_the_part_of_the_chain_our_infrastructure_wrote():
+    from griha.clientip import client_ip
+    edge = "13.32.0.5"                                                  # inside a published CloudFront range
+    from griha import clientip
+    assert any(__import__("ipaddress").ip_address(edge) in n for n in clientip._edges()), "CloudFront ranges snapshot should cover 13.32.0.0/15"
+    assert client_ip("172.17.0.1", f"8.8.4.4, {edge}") == "8.8.4.4"                 # Caddy -> app, CloudFront edge on the right: the viewer is the next address
+    assert client_ip("172.17.0.1", f"6.6.6.6, 8.8.4.4, {edge}") == "8.8.4.4"        # a forged value on the left is never reached
+    assert client_ip("172.17.0.1", "8.8.4.4") == "8.8.4.4"                           # direct to Caddy: Caddy appended the real peer
+    assert client_ip("93.184.216.34", "1.2.3.4") == "93.184.216.34"                            # a direct connection: the header is attacker-controlled and ignored
+    assert client_ip("127.0.0.1", None) == "127.0.0.1" and client_ip("172.17.0.1", "garbage, also-garbage") == "172.17.0.1"
+    assert client_ip("testclient", "9.9.9.9") == "testclient"                                # not an IP: used as it is
+
+
+def test_login_lockout_is_per_caller_so_a_stranger_cannot_lock_everyone_out():
+    from griha import auth
+    for _ in range(auth.LOCKOUT_AFTER):
+        assert auth.login("officer@griha.demo", "wrong", "198.51.100.7") is None
+    assert auth.locked("officer@griha.demo", "198.51.100.7") > 0                              # the attacker's address is locked out
+    assert auth.locked("officer@griha.demo", "203.0.113.77") == 0                              # everyone else is not
+    assert auth.login("officer@griha.demo", "griha-demo", "203.0.113.77")["role"] == "underwriter"
+    assert not any(k.startswith("officer@griha.demo|203.0.113.77") for k in auth._FAILS)
+
+
+def test_lockout_and_rate_limit_work_per_visitor_behind_the_proxy():
+    from starlette.testclient import TestClient
+    c = TestClient(app, client=("172.17.0.1", 5000))                  # the reverse proxy's address, as the container sees it
+    with c:
+        mine = {"X-Client-Chain": "6.6.6.6, 8.8.8.8, 13.32.0.5", "X-Forwarded-For": "5.5.5.5"}      # Caddy-written chain: CloudFront edge on the right; the plain header is ignored when it is present
+        codes = [c.post("/api/login", json={"email": "admin@griha.demo", "password": "bad"}, headers=mine).status_code for _ in range(7)]
+        assert codes[:5] == [401] * 5 and codes[5] == 429                                          # this visitor is locked out after five
+        other = {"X-Client-Chain": "6.6.6.6, 1.1.1.1, 13.32.0.5"}                       # the same forged left value, a different real visitor
+        assert c.post("/api/login", json={"email": "admin@griha.demo", "password": "griha-demo"}, headers=other).status_code == 200   # another visitor is unaffected
+
+
+def test_public_demo_hides_internals_from_anonymous_visitors_but_not_from_staff(monkeypatch):
+    with KeyedClient(app) as c:
+        monkeypatch.setattr(api, "PUBLIC_DEMO", True)
+        o = c.get("/api/ops", headers={"Authorization": ""}).json()
+        assert set(o["orchestrator"]) <= {"mode", "requested"} and "grafana_url" not in o["monitoring"] and "model" not in o["llm"]
+        assert c.get("/api/metrics", headers={"Authorization": ""}).status_code == 401
+        h = {"Authorization": "Bearer " + c.post("/api/login", json={"email": "officer@griha.demo", "password": "griha-demo"}).json()["token"]}
+        assert "client_ip" not in o and "client_ip" in c.get("/api/ops", headers=h).json()
+        assert "grafana_url" in c.get("/api/ops", headers=h).json()["monitoring"] and c.get("/api/metrics", headers=h).status_code == 200
+    monkeypatch.setattr(api, "PUBLIC_DEMO", False)
+    with KeyedClient(app) as c:
+        assert c.get("/api/metrics", headers={"Authorization": ""}).status_code == 200                # local Prometheus scrape still works

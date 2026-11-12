@@ -27,6 +27,8 @@ function Tbl({ items, val }: { items: J[]; val: (v: J) => ReactNode }) {
   )
 }
 
+const longDate = (iso: string, lang: string) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? iso : d.toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) }
+
 export default function Kfs() {
   const { id } = useParams()
   const { t, lang } = useI18n()
@@ -63,7 +65,7 @@ export default function Kfs() {
       <article className="letter sheet p-8 sm:p-10" lang={lang}>
         <header className="pb-4 border-b-2 border-rule flex items-start justify-between gap-6">
           <div><h1 className="m-0 text-2xl font-bold">{x.title}</h1><p className="m-0 mt-1 text-sm text-ink2">{x.sub}</p></div>
-          <div className="text-right text-sm"><div className="mono">{x.prop}: {k.proposal_no}</div><div>{x.valid}: <b>{c.kfs_valid_until}</b></div></div>
+          <div className="text-right text-sm"><div className="mono">{x.prop}: {k.proposal_no}</div><div>{x.valid}: <b>{longDate(c.kfs_valid_until, lang)}</b></div></div>
         </header>
         <p className="mt-3 text-sm">{x.validb}</p>
         <h2 className="mt-5 text-lg font-bold">{x.p1}</h2><Tbl val={val} items={a.part1.map((i: J) => i.no === 1 ? { ...i, value: `${k.proposal_no} · ${i.value}` } : i)} />

@@ -23,5 +23,6 @@ USER griha
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 PYDANTIC_AI_NO_BANNER=1 \
     GRIHA_STATIC_DIR=/app/static GRIHA_DATA_DIR=/data GRIHA_ORCHESTRATOR=inline GRIHA_PUBLIC_DEMO=1 GRIHA_RETENTION_HOLD=0
 EXPOSE 7860
-# Behind the platform's proxy the client address arrives in X-Forwarded-For; the rate limiter needs it.
-CMD ["uvicorn", "griha.api:app", "--host", "0.0.0.0", "--port", "7860", "--proxy-headers", "--forwarded-allow-ips", "*"]
+# The real client address is worked out inside the app from X-Forwarded-For (griha/clientip.py); uvicorn's own proxy-header handling is off because it
+# trusts the leftmost value, which a client can forge.
+CMD ["uvicorn", "griha.api:app", "--host", "0.0.0.0", "--port", "7860"]

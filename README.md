@@ -12,7 +12,7 @@ Home Loan and Loan Against Property decisions in milliseconds: **approve, reject
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![Temporal](https://img.shields.io/badge/Temporal-workflows-000000)
-![Tests](https://img.shields.io/badge/tests-133%20backend%20%2B%2025%20browser-brightgreen)
+![Tests](https://img.shields.io/badge/tests-137%20backend%20%2B%2026%20browser-brightgreen)
 ![Data](https://img.shields.io/badge/applicant%20data-100%25%20synthetic-orange)
 
 **[Live demo](https://d3l1fg79dbflis.cloudfront.net)** · [Architecture](#architecture) · [Quick start](#quick-start) · [Regulatory coverage](#regulatory-coverage) · [Honest limits](#honest-limits)
@@ -68,7 +68,7 @@ Griha is a working answer to one question: **can an underwriting engine be fast,
 | Capability | What you get |
 |---|---|
 | **Instant decision** | Approve, reject or refer for Home Loan and LAP, with an offer, an interest rate set from the RBI repo rate plus a risk premium, and a counter-offer instead of a flat no |
-| **Policy as code** | 18 rules in a hashed YAML file, traced line by line on every case; a Policy Impact Simulator replays 1,000 stored applications under a changed threshold before it ships |
+| **Policy as code** | 19 rules in a hashed YAML file, traced line by line on every case; a Policy Impact Simulator replays 1,000 stored applications under a changed threshold before it ships |
 | **Risk scoring** | Monotone-constrained LightGBM, isotonic calibration, conformal confidence sets, SHAP drivers, a scorecard band that sets the price |
 | **Fraud and KYC/AML** | Statement arithmetic and tamper checks, round-trips, window dressing, linked-applicant graph, anomaly model, real screening against the UN Security Council Consolidated List, an STR signal |
 | **Documents** | Bank statements as PDF, or Account Aggregator data in the ReBIT DEPOSIT FI format (XML or JSON); embedded instructions in a document are treated as evidence of tampering, never as commands |
@@ -100,7 +100,7 @@ Griha is a working answer to one question: **can an underwriting engine be fast,
 | Document AI | Deterministic text parser by default; optional local model through a typed Pydantic AI agent |
 | Frontend | React 19, Vite 8, Tailwind CSS v4, TypeScript, React Router, Hind and Azeret Mono fonts |
 | Observability | Prometheus, Grafana (provisioned dashboard), `prometheus-client` |
-| Quality | pytest (133), Playwright with axe accessibility checks (25), bandit, pip-audit, pnpm audit, GitHub Actions |
+| Quality | pytest (137), Playwright with axe accessibility checks (26), bandit, pip-audit, pnpm audit, GitHub Actions |
 | Deployment | One Docker image, Caddy for HTTPS, AWS EC2 |
 
 ## Quick start
@@ -198,7 +198,7 @@ Data ─▶ Income ─▶ Property ─▶ Eligibility ─▶ Policy ─▶ Risk 
 | **Income** | Twelve months of credits become a conservative, verified income; declared income is compared, not trusted | Inflated declared income is flagged; pricing uses verified income |
 | **Property** | Quantile valuation with a range, comparables, circle rate, title, RERA and encumbrance flags; two valuation reports above the thresholds | Disagreement or missing reports go to the **Property** queue |
 | **Eligibility** | FOIR at a stress rate, tiered LTV caps (90 / 80 / 75% for housing loans), tenure and ticket limits | A smaller counter-offer replaces a flat no |
-| **Policy** | 18 hashed rules, each with a reason; the engine version and policy hash are stored with the decision | Hard failures reject; soft ones refer |
+| **Policy** | 19 hashed rules, each with a reason; the engine version and policy hash are stored with the decision | Hard failures reject; soft ones refer |
 | **Risk** | Probability of default with a calibrated range, SHAP drivers, scorecard band, risk-based price | A grey-zone probability, or an uncertain one (a wide upper bound), refers to the **Credit** queue |
 | **Fraud and KYC/AML** | Tamper and behaviour checks, UN list screen, PEP and STR signals | A sanctions match goes to an officer, never an automatic decline, and is hidden from the applicant |
 | **Compliance** | 15 controls per case, each with clause and verification status (11 shown to the applicant) | Controls that are *enforced* (for example a sanctions match or high-risk onboarding) route the case to an officer; every control is shown with its status |
@@ -318,6 +318,7 @@ Interactive OpenAPI docs are served at `/docs` (the hosted demo allows the Swagg
 | GET | `/api/audit/verify` | Verify the hash chain |
 | POST | `/api/audit/replay/{id}`, `/tamper-demo/{id}` | Replay a decision; demonstrate tamper detection |
 | GET, POST | `/api/breaches`, `/api/breaches/{ref}/notify` | Breach register (admin) |
+| GET | `/api/benchmark` | Capacity benchmark of the engine on this machine |
 
 </details>
 
@@ -327,16 +328,16 @@ Interactive OpenAPI docs are served at `/docs` (the hosted demo allows the Swagg
 | Method | Route | Purpose |
 |---|---|---|
 | GET | `/api/health`, `/api/stats`, `/api/ops`, `/api/metrics` | Health, public counters, operations, Prometheus |
-| GET | `/api/policy`, `/api/model-card`, `/api/sources`, `/api/impact`, `/api/benchmark` | Policy, model card with real-data check, data sources, business impact, capacity |
+| GET | `/api/policy`, `/api/model-card`, `/api/sources`, `/api/impact` | Policy, model card with real-data check, data sources, business impact |
 
 </details>
 
 ## Testing and CI
 
 ```bash
-cd backend && uv run pytest -q            # 133 tests; the Temporal tests boot their own dev server and skip if the CLI is absent
+cd backend && uv run pytest -q            # 137 tests; the Temporal tests boot their own dev server and skip if the CLI is absent
 cd frontend && npx tsc -b                 # the real typecheck
-cd frontend && GRIHA_API_LIMIT=5000 ../ops/start.sh && pnpm e2e   # 25 browser tests with axe accessibility checks
+cd frontend && GRIHA_API_LIMIT=5000 ../ops/start.sh && pnpm e2e   # 26 browser tests with axe accessibility checks
 ```
 
 What the tests cover, beyond the obvious: byte-for-byte replay and tamper detection, crypto-shredding, retention deferral, applicant-view redaction, the APR example from the RBI, Annex I structure, Hindi/English parity of the KFS, per-attribute fairness statistics, a real UN-list hit end to end, the breach clock, XML hardening, prompt-injection handling, multi-worker consistency, and a real Temporal server.
@@ -359,10 +360,10 @@ The hosted copy runs in Sydney. A production deployment must keep data in India 
 backend/
   griha/            engine, stages, policy, risk, fraud, compliance, pricing (+ Hindi KFS), audit, crypto,
                     sanctions (UN list), aa (ReBIT), docextract, redact, backup, API, Temporal workflow
-  policy/v1.yaml    18 rules and the regulatory map, hashed into every decision
+  policy/v1.yaml    19 rules and the regulatory map, hashed into every decision
   artifacts/        trained models, metrics, real-data validation
   tools/            loadtest, validate_public (real data), validate_freddie (local only)
-  tests/            133 tests
+  tests/            137 tests
 frontend/           React app, Playwright e2e and screenshot scripts
 ops/                start/stop scripts, Prometheus and Grafana config, VM deploy script
 docs/               architecture, model card, security, scalability, deploy, data licensing, design spec, video script
@@ -376,7 +377,7 @@ The brief for Problem Statement 2 asks for eight capabilities. The in-app **PS2 
 | # | Requirement | Where |
 |---|---|---|
 | 1 | Integrate data sources | Four adapters with channel, time and records per case; PDF and ReBIT Account Aggregator parsing; outage handling |
-| 2 | Eligibility and policy | FOIR and LTV sizing, 18 hashed rules, counter-offers, instant calculator |
+| 2 | Eligibility and policy | FOIR and LTV sizing, 19 hashed rules, counter-offers, instant calculator |
 | 3 | Fraud and KYC/AML | `fraud.py`, `sanctions.py` (real UN list), STR signal, entity graph |
 | 4 | Risk scoring | `risk.py`: monotone LightGBM, calibration, conformal sets, SHAP, scorecard |
 | 5 | Documents and property | `docextract.py`, `aa.py`, `property.py` |

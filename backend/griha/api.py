@@ -25,7 +25,7 @@ from prometheus_client import CONTENT_TYPE_LATEST
 from temporalio.client import Client, WorkflowUpdateFailedError
 from temporalio.worker import Worker
 
-from . import aa, auth, pricing, redact, config, docextract, drift, eligibility, intake, observability, scenarios, sources
+from . import clientip, aa, auth, pricing, redact, config, docextract, drift, eligibility, intake, observability, scenarios, sources
 from . import activities as acts, runtime
 from . import workflow as wf
 from . import web
@@ -105,13 +105,18 @@ async def guard(request: Request, call_next):
         resp = await call_next(request)
         resp.headers.update(SEC_HEADERS)
         return resp
-    ip = request.client.host if request.client else "?"
+    ip = request.state.ip = clientip.client_ip(request.client.host if request.client else None, request.headers.get("x-client-chain") or request.headers.get("x-forwarded-for"))
     limit = int(os.environ.get("GRIHA_LOGIN_LIMIT", "10")) if request.url.path.endswith("/login") else int(os.environ.get("GRIHA_API_LIMIT", "240"))
     now = time.time()
-    _hits[f"{ip}:{limit}"] = [t for t in _hits[f"{ip}:{limit}"] if now - t < 60]
-    if len(_hits[f"{ip}:{limit}"]) >= limit:
+    key = f"{ip}:{limit}"
+    _hits[key] = [t for t in _hits[key] if now - t < 60]
+    if len(_hits) > 5000:                                           # the table must not grow with every address ever seen
+        for k in [k for k, v in _hits.items() if not v or now - v[-1] >= 60]:
+            _hits.pop(k, None)
+        _hits.setdefault(key, [])
+    if len(_hits[key]) >= limit:
         return JSONResponse({"detail": "rate limit exceeded"}, status_code=429)
-    _hits[f"{ip}:{limit}"].append(now)
+    _hits[key].append(now)
     t0 = time.perf_counter()
     resp = await call_next(request)
     if not request.url.path.endswith("/metrics"):
@@ -434,11 +439,12 @@ def health():
 
 
 @app.post("/api/login")
-def login(b: LoginBody):
-    wait = auth.locked(b.email)
+def login(b: LoginBody, request: Request):
+    ip = getattr(request.state, "ip", "-")
+    wait = auth.locked(b.email, ip)
     if wait:
         raise HTTPException(429, f"too many failed attempts; try again in {wait // 60 + 1} min")
-    r = auth.login(b.email, b.password)
+    r = auth.login(b.email, b.password, ip)
     if not r:
         raise HTTPException(401, "invalid credentials")
     return r
@@ -996,14 +1002,21 @@ def _up(url: str) -> bool:
         return False
 
 
+def _is_staff(authorization: str) -> bool:
+    c = auth.verify(authorization.removeprefix("Bearer ").strip()) if authorization else None
+    return bool(c and c.get("role") in ("underwriter", "admin"))
+
+
 @app.get("/api/metrics")
-def metrics():
+def metrics(authorization: str = Header(default="")):
+    if PUBLIC_DEMO and not _is_staff(authorization):                # the raw Prometheus exposition is for operators; nobody scrapes the hosted demo
+        raise HTTPException(401, "authentication required")
     drift_report()
     return Response(observability.exposition(), media_type=CONTENT_TYPE_LATEST)
 
 
 @app.get("/api/ops")
-async def ops():
+async def ops(request: Request, authorization: str = Header(default="")):
     snap = observability.snapshot()
     orch = dict(STATE["orch"])
     if orch["mode"] == "temporal":
@@ -1013,8 +1026,10 @@ async def ops():
         except Exception as e:
             orch["error"] = f"{type(e).__name__}: {str(e)[:100]}"
     prom, graf = await asyncio.gather(asyncio.to_thread(_up, "http://127.0.0.1:9090/-/ready"), asyncio.to_thread(_up, "http://127.0.0.1:3000/api/health"))
-    return {"orchestrator": orch, "metrics": snap, "monitoring": {"prometheus": prom, "grafana": graf, "grafana_url": "http://localhost:3000", "prometheus_url": "http://localhost:9090"},
-            "llm": {"ollama_ready": await asyncio.to_thread(docextract.ollama_available), "model": docextract.OLLAMA_MODEL},
+    out_orch = orch if (_is_staff(authorization) or not PUBLIC_DEMO) else {k: orch.get(k) for k in ("mode", "requested")}      # no internal addresses or error text for anonymous visitors of the public demo
+    anon = PUBLIC_DEMO and not _is_staff(authorization)
+    return {**({"client_ip": getattr(request.state, "ip", None)} if _is_staff(authorization) else {}), "orchestrator": out_orch, "metrics": snap, "monitoring": {"prometheus": prom, "grafana": graf, **({} if anon else {"grafana_url": "http://localhost:3000", "prometheus_url": "http://localhost:9090"})},
+            "llm": {"ollama_ready": await asyncio.to_thread(docextract.ollama_available), **({} if anon else {"model": docextract.OLLAMA_MODEL})},
             "versions": {"policy": eng().policy.version, "policy_hash": eng().policy.hash(), "model": eng().risk.version, "engine": config.ENGINE_VERSION}, "audit_entries": eng().audit.count(),
             "drift": drift_report(), "public_demo": PUBLIC_DEMO}
 
