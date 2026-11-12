@@ -7,6 +7,6 @@ export default defineConfig({
   // Production-grade headers for `vite preview` (the built app). The dev server needs inline scripts for hot reload, so it only gets the basics.
   preview: { headers: {
     'Content-Security-Policy': "default-src 'self'; script-src 'self' 'sha256-xU6i8AEYHDOfhdJR4oHFaQ3fnVINtaLzSzJeGLWBWk0='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
-    'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'Permissions-Policy': 'camera=(), microphone=(), geolocation=()' } },
+    'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'Permissions-Policy': 'camera=(self), microphone=(), geolocation=(self)' } },
   server: { headers: { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' }, port: 5173, proxy: { '/api': 'http://127.0.0.1:8000' } },
 })

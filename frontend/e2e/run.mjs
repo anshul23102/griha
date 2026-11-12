@@ -98,7 +98,8 @@ await test('flaky bureau: retried by the workflow and visible as attempt 3', asy
   await p.getByRole('checkbox').check(); await p.getByRole('button', { name: 'Get decision' }).click()
   await p.getByText('Fetching data sources').waitFor({ timeout: 8000 })
   await p.getByText('Regulatory controls on this case').waitFor({ timeout: 20000 })
-  await p.getByText('Data sources and documents').click()
+  if (!(await p.locator('main').innerText()).includes('Credit bureau report')) await p.getByText('Data sources and documents').click()   // the section opens by itself when the stage needed attention
+  await p.getByText('Credit bureau report').first().waitFor({ timeout: 5000 })
   ok((await p.locator('main').innerText()).includes('Credit bureau report'), 'bureau row')
   await p.context().close()
 })

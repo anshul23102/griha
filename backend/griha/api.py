@@ -79,9 +79,10 @@ app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http
 _hits: dict[str, list[float]] = defaultdict(list)
 SEC_HEADERS = {"X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer", "Cache-Control": "no-store",
                "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'", "Cross-Origin-Resource-Policy": "same-origin",
-               "Permissions-Policy": "camera=(), microphone=(), geolocation=()", "Strict-Transport-Security": "max-age=63072000; includeSubDomains"}
+               "Permissions-Policy": "camera=(self), microphone=(), geolocation=(self)", "Strict-Transport-Security": "max-age=63072000; includeSubDomains"}
 
 
+MAX_REQUEST_BYTES = 12 * 1024 * 1024
 PUBLIC_DEMO = os.environ.get("GRIHA_PUBLIC_DEMO") == "1"     # set on the hosted demo: shows the synthetic-data banner, explains missing monitoring
 PAGE_HEADERS: dict[str, str] = {}     # set when the built frontend is mounted (see bottom of file)
 
@@ -117,6 +118,12 @@ async def guard(request: Request, call_next):
     if len(_hits[key]) >= limit:
         return JSONResponse({"detail": "rate limit exceeded"}, status_code=429)
     _hits[key].append(now)
+    try:
+        too_big = int(request.headers.get("content-length") or 0) > MAX_REQUEST_BYTES
+    except ValueError:
+        too_big = True
+    if too_big:                                                       # the largest legitimate body is a statement upload; nothing else comes close
+        return JSONResponse({"detail": "request body too large"}, status_code=413, headers=SEC_HEADERS)
     t0 = time.perf_counter()
     resp = await call_next(request)
     if not request.url.path.endswith("/metrics"):
@@ -432,7 +439,7 @@ class SimBody(BaseModel):
     changes: dict[str, float | int | bool | str]
 
 
-@app.get("/api/health")
+@app.api_route("/api/health", methods=["GET", "HEAD"])
 def health():
     return {"ok": True, "scenarios": len(STATE["scen"]), "model": eng().risk.version, "policy": eng().policy.version, "policy_hash": eng().policy.hash(),
             "public_demo": PUBLIC_DEMO}

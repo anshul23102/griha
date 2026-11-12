@@ -100,3 +100,11 @@ def test_uploaded_document_ids_are_unguessable():
     from griha.intake import IntakeForm
     pat = IntakeForm.model_fields["document_id"].metadata[0].pattern
     assert re.match(pat, "D-" + "A" * 32) and not re.match(pat, "D-" + "A" * 8)
+
+
+def test_oversized_body_is_refused_and_vcip_permissions_allowed(plain):
+    r = plain.post("/api/applications/new", content=b"x" * (13 * 1024 * 1024), headers={"Content-Type": "application/json"})
+    assert r.status_code == 413
+    h = plain.get("/api/health").headers["permissions-policy"]
+    assert "camera=(self)" in h and "geolocation=(self)" in h and "microphone=()" in h        # V-CIP needs the camera and location on our own origin only
+    assert plain.head("/api/health").status_code == 200                                        # uptime monitors send HEAD

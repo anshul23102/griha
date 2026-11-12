@@ -12,7 +12,7 @@ Home Loan and Loan Against Property decisions in milliseconds: **approve, reject
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![Temporal](https://img.shields.io/badge/Temporal-workflows-000000)
-![Tests](https://img.shields.io/badge/tests-149%20backend%20%2B%2029%20browser-brightgreen)
+![Tests](https://img.shields.io/badge/tests-150%20backend%20%2B%2029%20browser-brightgreen)
 ![Data](https://img.shields.io/badge/applicant%20data-100%25%20synthetic-orange)
 
 **[Live demo](https://d3l1fg79dbflis.cloudfront.net)** · [Architecture](#architecture) · [Quick start](#quick-start) · [Regulatory coverage](#regulatory-coverage) · [Honest limits](#honest-limits)
@@ -26,6 +26,8 @@ Home Loan and Loan Against Property decisions in milliseconds: **approve, reject
 > **Read this first.** Every applicant in this project is synthetic. Model metrics describe a simulation, not real borrowers, and one section below shows the checks we ran on real public credit data. Nothing here is a lending product or legal advice. What is real, what is simulated and what is not built is spelled out in [one table](#what-is-real-what-is-simulated-what-is-not-built).
 
 ---
+
+**TeamBreezy** (i-Hack, IIT Bombay E-Summit 2026, Hero Housing Fintech Challenge, Problem Statement 2): [Anshul Jain](https://github.com/anshul23102) and [Milind Kumar](https://github.com/Milind23320).
 
 ## Contents
 
@@ -103,7 +105,7 @@ Griha is a working answer to one question: **can an underwriting engine be fast,
 | Document AI | Deterministic text parser by default; optional local model through a typed Pydantic AI agent |
 | Frontend | React 19, Vite 8, Tailwind CSS v4, TypeScript, React Router, Hind and Azeret Mono fonts |
 | Observability | Prometheus, Grafana (provisioned dashboard), `prometheus-client` |
-| Quality | pytest (149), Playwright with axe accessibility checks (29), bandit, pip-audit, pnpm audit, GitHub Actions |
+| Quality | pytest (150), Playwright with axe accessibility checks (29), bandit, pip-audit, pnpm audit, GitHub Actions |
 | Deployment | One Docker image, Caddy for HTTPS, AWS EC2 |
 
 ## Quick start
@@ -340,7 +342,7 @@ Interactive OpenAPI docs are served at `/docs` (the hosted demo allows the Swagg
 ## Testing and CI
 
 ```bash
-cd backend && uv run pytest -q            # 149 tests; the Temporal tests boot their own dev server and skip if the CLI is absent
+cd backend && uv run pytest -q            # 150 tests; the Temporal tests boot their own dev server and skip if the CLI is absent
 cd frontend && npx tsc -b                 # the real typecheck
 cd frontend && GRIHA_API_LIMIT=5000 ../ops/start.sh && pnpm e2e   # 29 browser tests with axe accessibility checks
 ```
@@ -368,7 +370,7 @@ backend/
   policy/v1.yaml    19 rules and the regulatory map, hashed into every decision
   artifacts/        trained models, metrics, real-data validation
   tools/            loadtest, validate_public (real data), validate_freddie (local only)
-  tests/            149 tests
+  tests/            150 tests
 frontend/           React app, Playwright e2e and screenshot scripts
 ops/                start/stop scripts, Prometheus and Grafana config, VM deploy script
 docs/               submission deck (Griha-deck.pdf, source in docs/deck), architecture, model card, security, scalability, deploy, data licensing, design spec, video script

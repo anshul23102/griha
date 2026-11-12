@@ -46,7 +46,7 @@ sudo docker run -d --name griha --restart unless-stopped --env-file /etc/griha.e
 # terminates HTTPS for visitors itself. Requests for the named host are still redirected to HTTPS by Caddy.
 # Caddy 2.6 overwrites X-Forwarded-For with its peer (behind CloudFront: the edge), so the real visitor would be lost. This writes the chain it received plus its peer into
 # X-Client-Chain, which the app reads (griha/clientip.py). header_up SETS the header, so a client cannot forge it.
-printf '%s {\n  reverse_proxy 127.0.0.1:7860 {\n    header_up X-Client-Chain "{http.request.header.X-Forwarded-For}, {http.request.remote.host}"\n  }\n}\n\n:80 {\n  reverse_proxy 127.0.0.1:7860 {\n    header_up X-Client-Chain "{http.request.header.X-Forwarded-For}, {http.request.remote.host}"\n  }\n}\n' "$HOST" | sudo tee /etc/caddy/Caddyfile >/dev/null
+printf '%s {\n  request_body {\n    max_size 12MB\n  }\n  reverse_proxy 127.0.0.1:7860 {\n    header_up X-Client-Chain "{http.request.header.X-Forwarded-For}, {http.request.remote.host}"\n  }\n}\n\n:80 {\n  request_body {\n    max_size 12MB\n  }\n  reverse_proxy 127.0.0.1:7860 {\n    header_up X-Client-Chain "{http.request.header.X-Forwarded-For}, {http.request.remote.host}"\n  }\n}\n' "$HOST" | sudo tee /etc/caddy/Caddyfile >/dev/null
 sudo systemctl restart caddy
 REMOTE
 
