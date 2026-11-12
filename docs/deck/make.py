@@ -173,7 +173,7 @@ slide(f"""<div class="body">
 # ------------------------------------------------------------------ 4 flow
 names = ["Data", "Income", "Property", "Eligibility", "Policy", "Risk", "Fraud + KYC/AML", "Compliance"]
 lines = ["Bank, bureau, KYC, land records, fetched in parallel", "Twelve months of credits become a verified income", "Valuation range, comparables, title, valuation reports",
-         "FOIR at a stress rate, LTV caps, tenure, counter-offer", "19 hashed rules, each with a reason", "Calibrated default probability, drivers, price", "Tamper checks, UN list screen, linked applicants", "15 controls with clause and status"]
+         "FOIR at a stress rate, LTV caps, tenure, counter-offer", "19 hashed rules, each with a reason", "Calibrated default probability, drivers, price", "Tamper checks, four-list sanctions screen, linked applicants", "15 controls with clause and status"]
 st = "".join(f'<div class="card" style="padding:22px 24px"><div class="num">{i+1}</div><h3 style="font-size:27px;margin-top:14px">{n}</h3><p class="cap mt8" style="font-size:21px">{l}</p></div>' for i, (n, l) in enumerate(zip(names, lines)))
 slide(f"""<div class="body">
 <div class="kick">End to end</div>
@@ -197,7 +197,7 @@ slide("""<div class="body">
     <table><thead><tr><th>Source</th><th>Channel</th><th>Status</th></tr></thead><tbody>
       <tr><td>Bank statement</td><td>PDF parser, or ReBIT DEPOSIT FI file (XML or JSON)</td><td><span class="tag2 t-real">Real parser</span></td></tr>
       <tr><td>Credit bureau</td><td>Simulated, shaped like a bureau report</td><td><span class="tag2 t-sim">Simulated</span></td></tr>
-      <tr><td>KYC and sanctions</td><td>Simulated KYC; real UN list screen</td><td><span class="tag2 t-real">UN list real</span></td></tr>
+      <tr><td>KYC and sanctions</td><td>Simulated KYC; real UN, OFAC, EU and UK list screen; V-CIP checklist</td><td><span class="tag2 t-real">Lists real</span></td></tr>
       <tr><td>Land records</td><td>Simulated title, RERA, encumbrance</td><td><span class="tag2 t-sim">Simulated</span></td></tr>
     </tbody></table>
   </div>
@@ -241,7 +241,7 @@ slide("""<div class="body">
 <h1>Fraud and AML checks run on every case, and the law decides what the applicant sees.</h1>
 <div class="cols c3 mt48">
   <div class="card"><h3>Detect</h3><ul class="l mt16" style="font-size:22px"><li>Balance-arithmetic and edit checks on statements</li><li>Round-trip money and window dressing</li><li>Cash intensity and an STR signal</li><li>Linked-applicant graph: shared phone, property, rings</li><li>Behaviour anomaly model</li></ul></div>
-  <div class="card"><h3>Screen</h3><div class="stat mt16">1,007</div><div class="lab">entries on the real UN Security Council Consolidated List (snapshot 10 Nov 2026), names and aliases</div><p class="cap mt16">A close match is a possible match. It goes to an officer: it is never an automatic decline (KYC Directions para 18).</p></div>
+  <div class="card"><h3>Screen</h3><div class="stat mt16">31,347</div><div class="lab">entries on the real UN, US OFAC, EU and UK sanctions lists (snapshot 10 Nov 2026), names and aliases. A contradicting birth year clears a name-only match</div><p class="cap mt16">A close match is a possible match. It goes to an officer: it is never an automatic decline (KYC Directions para 18).</p></div>
   <div class="card y"><h3>Withhold</h3><p class="mt16" style="font-size:22px">Fraud findings, sanctions matches, the STR signal and the risk category are removed from the applicant's view (KYC paras 19, 20(4), 52). Officers see everything.</p><div class="card mt16" style="padding:16px 20px;background:#fff"><div class="mono" style="font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)">What the applicant is told</div><p style="font-size:21px;margin-top:6px">"Your application needs one more check by an officer. We will contact you on your registered number."</p></div></div>
 </div>
 <p class="cap mt32">On 120 injected fraud cases (edited statements, window dressing, identity mismatch, rings) 119 were held back. The typologies are ones we wrote; real fraud differs. Aadhaar is treated as voluntary; a missing e-KYC refers to an officer.</p>
@@ -343,7 +343,7 @@ slide("""<div class="body">
   <div class="card"><div class="num">2</div><h3 class="mt16">Trace</h3><ul class="l mt16" style="font-size:22px"><li>Hash-chained audit log; the input is stored encrypted</li><li>Replay any decision byte for byte</li><li>Tamper detection, shown live</li><li>Engine and policy version on every decision; a changed engine is flagged, not mistaken for tampering</li></ul></div>
   <div class="card y"><div class="num">3</div><h3 class="mt16">Govern</h3><ul class="l mt16" style="font-size:22px"><li>Four-eyes: an officer cannot approve a fraud case; the Credit Head can</li><li>Referrals carry an SLA timer that escalates and audits</li><li>Model card, drift monitor, fairness check per attribute</li><li>Erasure by crypto-shredding; the chain still verifies</li></ul></div>
 </div>
-<p class="cap mt32">Replay, tamper detection, retention and redaction are all covered by automated tests (137 backend, 26 browser including accessibility checks).</p>
+<p class="cap mt32">Replay, tamper detection, retention and redaction are all covered by automated tests (149 backend, 29 browser including accessibility checks).</p>
 </div>""", tag="Explainability and governance", num="12", station=7)
 
 # ------------------------------------------------------------------ 14 architecture
@@ -444,9 +444,9 @@ slide("""<div class="body">
 <div class="kick">Honesty</div>
 <h1>What is real, what is simulated, and what is not built.</h1>
 <div class="cols c3 mt32">
-  <div class="card"><span class="tag2 t-real">Real</span><ul class="l mt16" style="font-size:22px"><li>APR arithmetic (matches the RBI example)</li><li>KFS in the Annex I layout, English and Hindi</li><li>UN Security Council list screening</li><li>ReBIT Account Aggregator file parsing</li><li>Repo rate 5.50% and RESIDEX figures</li><li>Hash-chained audit and encryption</li><li>DPDP rights flow, breach register</li></ul></div>
-  <div class="card"><span class="tag2 t-sim">Simulated</span><ul class="l mt16" style="font-size:22px"><li>Bureau, KYC and land-record feeds</li><li>Every applicant and bank statement</li><li>The Account Aggregator link itself</li><li>Property price levels</li><li>Default outcomes the model is tested on</li></ul></div>
-  <div class="card"><span class="tag2 t-no">Not built</span><ul class="l mt16" style="font-size:22px"><li>AA consent flow and FIU signing</li><li>OFAC, EU, UK, MHA lists; PEP data</li><li>CKYCR upload, video KYC</li><li>Quarterly statements, document release</li><li>Recovery-agent rules</li><li>Postgres; India-region hosting</li></ul></div>
+  <div class="card"><span class="tag2 t-real">Real</span><ul class="l mt16" style="font-size:22px"><li>APR (matches the RBI example); KFS in English and Hindi</li><li>UN, OFAC, EU and UK list screening (31,347 entries)</li><li>Quarterly statement, document release, recovery rules</li><li>AA signing and encryption (JWS, AES-GCM)</li><li>V-CIP rules (paras 26, 27); PostgreSQL support</li><li>Repo rate 5.50% and RESIDEX figures</li><li>Hash-chained audit and encryption</li><li>DPDP rights flow, breach register</li></ul></div>
+  <div class="card"><span class="tag2 t-sim">Simulated</span><ul class="l mt16" style="font-size:22px"><li>Bureau, KYC and land-record feeds</li><li>Every applicant and bank statement</li><li>The Aggregator itself: a mock, not a registered one</li><li>V-CIP sessions: no real video, camera hashes only</li><li>Property price levels</li><li>Default outcomes the model is tested on</li></ul></div>
+  <div class="card"><span class="tag2 t-no">Not built</span><ul class="l mt16" style="font-size:22px"><li>Registered FIU and live Aggregator (needs RBI and Sahamati onboarding)</li><li>MHA UAPA list (no machine-readable feed); PEP data (licensed)</li><li>CKYCR upload (needs CERSAI access)</li><li>V-CIP video recording and liveness model</li><li>DSA/DMA rules; KFS summary box</li><li>India-region hosting (AWS free plan locks to Sydney)</li></ul></div>
 </div>
 </div>""", tag="Honesty", num="17")
 
@@ -477,7 +477,7 @@ slide("""<div class="body">
   <tr><td>RBI NBFC Responsible Business Conduct Directions, 2025 (…/362)</td><td>Annex I KFS, penal charges, prepayment, APR example</td><td><span class="tag2 t-real">Primary text</span></td></tr>
   <tr><td>Digital Personal Data Protection Rules, 2025 (G.S.R. 846(E), 892(E), 843(E))</td><td>Notice, safeguards, rights, breach, retention</td><td><span class="tag2 t-real">Primary text</span></td></tr>
   <tr><td>RBI policy repo rate 5.50% (MPC, Oct 2026); NHB RESIDEX Q3 FY2025-26</td><td>Pricing base rate; market context</td><td><span class="tag2 t-real">Published</span></td></tr>
-  <tr><td>UN Security Council Consolidated List (10 Nov 2026)</td><td>Sanctions screening</td><td><span class="tag2 t-real">Public list</span></td></tr>
+  <tr><td>UN, OFAC SDN, EU and UK sanctions lists (10 Nov 2026)</td><td>Sanctions screening</td><td><span class="tag2 t-real">Public list</span></td></tr>
   <tr><td>ReBIT Account Aggregator DEPOSIT FI schema</td><td>Statement file format</td><td><span class="tag2 t-real">Public spec</span></td></tr>
   <tr><td>UCI German Credit (doi:10.24432/C5NC77); Taiwan card default (doi:10.24432/C55S3H), CC BY 4.0</td><td>Real-data check of the model recipe</td><td><span class="tag2 t-real">Open data</span></td></tr>
   <tr><td>RBI Financial Stability Report, June 2026 (press reports)</td><td>Sanity check on the real housing NPA ratio</td><td><span class="tag2 t-sim">Secondary</span></td></tr>

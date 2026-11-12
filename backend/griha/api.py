@@ -25,7 +25,7 @@ from prometheus_client import CONTENT_TYPE_LATEST
 from temporalio.client import Client, WorkflowUpdateFailedError
 from temporalio.worker import Worker
 
-from . import clientip, aa, auth, pricing, redact, config, docextract, drift, eligibility, intake, observability, scenarios, sources
+from . import db, aa_fiu, aa_mock, servicing, vcip, clientip, aa, auth, pricing, redact, config, docextract, drift, eligibility, intake, observability, scenarios, sources
 from . import activities as acts, runtime
 from . import workflow as wf
 from . import web
@@ -703,6 +703,147 @@ def upload_aa(scenario_id: str | None = Form(None), applicant_name: str | None =
             "balance_breaks": balance_breaks(ext.txns), "issues": [i.model_dump() for i in ext.issues], "format": aa.FORMAT_NAME, "schema_url": aa.SCHEMA_URL}
 
 
+# ---- V-CIP: video-based customer identification, as an enforced procedure (griha/vcip.py) ----
+def _vcip(case_id: str) -> dict | None:
+    sess: dict | None = None
+    for x in eng().audit.for_case(case_id):
+        if x["event"] == "VCIP_STARTED":
+            sess = {**x["payload"], "state": "started", "started_at": x["ts"]}
+        elif x["event"] in ("VCIP_COMPLETED", "VCIP_FAILED") and sess and x["payload"]["session_id"] == sess["session_id"]:
+            sess = {**sess, "state": "passed" if x["event"] == "VCIP_COMPLETED" else "failed", "result": x["payload"]["result"], "finished_at": x["ts"]}
+    return sess
+
+
+class VcipAnswer(BaseModel):
+    id: str = Field(max_length=12)
+    ok: bool
+
+
+class VcipDone(BaseModel):
+    geo: dict
+    identification_method: str = Field(max_length=30)
+    id_obtained_on: date | None = None
+    photo_sha256: str | None = Field(default=None, max_length=64)
+    pan_image_sha256: str | None = Field(default=None, max_length=64)
+    epan: bool = False
+    financial_profile_confirmed: bool = False
+    address_differs: bool = False
+    current_address_recorded: bool = False
+    liveness_passed: bool = False
+    prompting_observed: bool = False
+    disruption: Literal["none", "paused", "dropped"] = "none"
+    answers: list[VcipAnswer] = Field(default_factory=list, max_length=20)
+
+
+@app.get("/api/cases/{case_id}/vcip")
+def get_vcip(case_id: str, user=Depends(auth.require("underwriter", "admin"))):
+    return _vcip(case_id) or {"state": "none", "routes": vcip.IDENT_ROUTES}
+
+
+@app.post("/api/cases/{case_id}/vcip/start")
+def vcip_start(case_id: str, user=Depends(auth.require("underwriter", "admin"))):
+    """Start a V-CIP session. Each session gets its own randomised questions (para 27(2)(iii)); a new session is needed after a drop (27(2)(ii))."""
+    c = _get_case(case_id)
+    if not c or c.get("erased"):
+        raise HTTPException(404, "case not found")
+    if c.get("consent_withdrawn"):
+        raise HTTPException(409, "consent was withdrawn")
+    sid = uuid.uuid4().hex[:12]
+    qs = vcip.new_questions()
+    eng().audit.append(case_id, "VCIP_STARTED", {"session_id": sid, "official": user["sub"], "questions": qs})
+    kyc = c["app"].kyc
+    return {"session_id": sid, "questions": qs, "routes": vcip.IDENT_ROUTES, "negative_list_hit": bool(kyc and kyc.sanctions_hit)}
+
+
+@app.post("/api/cases/{case_id}/vcip/{session_id}/complete")
+def vcip_complete(case_id: str, session_id: str, b: VcipDone, user=Depends(auth.require("underwriter", "admin"))):
+    sess = _vcip(case_id)
+    if not sess or sess["session_id"] != session_id:
+        raise HTTPException(404, "no such open session: start a new one")
+    if sess["state"] != "started":
+        raise HTTPException(409, "this session is already finished")
+    c = _get_case(case_id)
+    kyc = c["app"].kyc
+    data = {**b.model_dump(mode="json"), "questions": sess["questions"], "negative_list_hit": bool(kyc and kyc.sanctions_hit)}
+    res = vcip.evaluate(data, date.today())
+    res["official"] = user["sub"]
+    eng().audit.append(case_id, "VCIP_COMPLETED" if res["passed"] else "VCIP_FAILED",
+                       {"session_id": session_id, "result": {**res, "checks": {k: v for k, v in data.items() if k not in ("questions", "answers")}, "answers": data["answers"]}})
+    return {**res, "state": "passed" if res["passed"] else "failed"}
+
+
+# ---- Account Aggregator: our FIU talking to a mock Aggregator in process (griha/aa_fiu.py, griha/aa_mock.py). A sandbox of the real protocol, not a real AA. ----
+_AA: dict = {}
+
+
+def _aa_state() -> dict:
+    if not _AA:
+        key, kid = aa_fiu.new_rsa_key(), "griha-fiu-" + uuid.uuid4().hex[:8]
+        _AA.update(key=key, kid=kid, mock=aa_mock.MockAA({kid: key.public_key()}))
+    return _AA
+
+
+def _fiu() -> "aa_fiu.Fiu":
+    st = _aa_state()
+    return aa_fiu.Fiu("GRIHA-FIU", st["key"], st["kid"], st["mock"].public, st["mock"].post, st["mock"].get)
+
+
+class AAConsentBody(BaseModel):
+    phone: str = Field(pattern=r"^[6-9][0-9]{9}$")
+    name: str = Field(min_length=2, max_length=80)
+
+
+@app.post("/api/aa/consent")
+async def aa_consent(b: AAConsentBody):
+    """Step 1: the FIU asks the Aggregator for the customer's consent (a signed request). The customer then approves or rejects it in the Aggregator's own app."""
+    vua = f"{b.phone}@mock-aa"
+    mock = _aa_state()["mock"]
+    mock.profiles[vua] = " ".join(b.name.split())
+    fiu = _fiu()
+    r = await fiu.request_consent(vua)
+    d = mock.consents[r["ConsentHandle"]]["detail"]
+    return {"handle": r["ConsentHandle"], "status": "PENDING", "aggregator": "Griha mock Aggregator (sandbox, not a real AA)", "customer": vua,
+            "consent": {"purpose": d["Purpose"]["text"], "data": d["consentTypes"], "fi_types": d["fiTypes"], "from": d["FIDataRange"]["from"][:10], "to": d["FIDataRange"]["to"][:10],
+                        "valid_until": d["consentExpiry"][:10], "fetch": d["fetchType"], "mode": d["consentMode"]}, "trace": fiu.trace}
+
+
+class AADecideBody(BaseModel):
+    approve: bool
+
+
+@app.post("/api/aa/consent/{handle}/decide")
+async def aa_decide(handle: str, b: AADecideBody):
+    """Step 2: what the customer does in the Aggregator's app. Here it is a button on the page, because the Aggregator is a mock."""
+    try:
+        return _aa_state()["mock"].decide(handle, b.approve)
+    except KeyError:
+        raise HTTPException(404, "unknown consent handle")
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+
+
+@app.post("/api/aa/fetch/{handle}")
+async def aa_fetch(handle: str):
+    """Step 3: with the consent active, the FIU fetches the signed artefact, requests the data with fresh keys, receives it encrypted, decrypts it and reads it like any DEPOSIT file."""
+    mock = _aa_state()["mock"]
+    if handle not in mock.consents:
+        raise HTTPException(404, "unknown consent handle")
+    fiu = _fiu()
+    name = mock.profiles.get(mock.consents[handle]["customer"])
+    try:
+        doc = await fiu.fetch_data(handle)
+    except (PermissionError, ValueError, KeyError) as e:
+        raise HTTPException(409, str(e))
+    try:
+        ext = aa.parse_fi(json.dumps(doc).encode(), applicant_name=name)
+    except docextract.UploadError as e:
+        raise HTTPException(422, str(e))
+    _store_doc(ext)
+    return {"doc_id": ext.doc_id, "method": ext.method, "provider": "account_aggregator_protocol_sandbox", "model": None, "fallback_reason": None, "pages": 0, "holder_name": ext.holder_name,
+            "period": [ext.period_from, ext.period_to], "transactions": len(ext.txns), "balance_breaks": balance_breaks(ext.txns), "issues": [i.model_dump() for i in ext.issues],
+            "format": aa.FORMAT_NAME, "schema_url": aa.SCHEMA_URL, "trace": fiu.trace}
+
+
 @app.post("/api/cases/{case_id}/erase")
 def erase_case(case_id: str, b: EraseBody, user=Depends(auth.require("admin"))):
     """DPDP right to erasure by crypto-shredding: the case's data key is destroyed. The audit chain stays verifiable."""
@@ -809,6 +950,127 @@ def data_rights(case_id: str, b: RightsBody, _=Depends(auth.case_access)):
     _apply_audit([entry])
     return {"ok": True, "reference": entry["hash"][:12], "respond_by": due, "consent_withdrawn": bool(c.get("consent_withdrawn")),
             "retained_until": _retain_until(c["created"]) if b.kind in ("erasure", "withdraw_consent") else None}
+
+
+# ---- servicing after sanction: quarterly statement, release of documents, recovery conduct (see griha/servicing.py) ----
+@app.get("/api/cases/{case_id}/statements")
+def quarterly_statements(case_id: str, months: int = 12, _=Depends(auth.case_access)):
+    c = _get_case(case_id)
+    if not c or c.get("erased") or not c["decision"].kfs:
+        raise HTTPException(404, "no offer on this case")
+    when = (c.get("kfs_ack") or {}).get("at") or c["created"]
+    start = (date.fromisoformat(str(when)[:10]) if isinstance(when, str) else datetime.fromtimestamp(float(when), timezone.utc).date())
+    return servicing.quarterly_statements(c["decision"].kfs, start, max(0, min(months, 600)))
+
+
+class ClosureBody(BaseModel):
+    repaid_on: date
+    damaged: bool = False
+    collection_place: str = Field(default="the branch or office that serviced the account", min_length=3, max_length=120)
+    released_on: date | None = None
+    delay_reason: str | None = Field(default=None, max_length=400)
+
+
+def _closure(case_id: str) -> dict | None:
+    ev = [x for x in eng().audit.for_case(case_id) if x["event"] in ("CLOSURE_RECORDED", "DOCS_RELEASED")]
+    if not ev:
+        return None
+    base = next((x["payload"] for x in reversed(ev) if x["event"] == "CLOSURE_RECORDED"), None)
+    if not base:
+        return None
+    rel = next((x["payload"] for x in reversed(ev) if x["event"] == "DOCS_RELEASED"), None)
+    st = servicing.closure_status(servicing.Closure(date.fromisoformat(base["repaid_on"]), base.get("damaged", False),
+                                                    date.fromisoformat(rel["released_on"]) if rel else None, base.get("collection_place", "")), date.today())
+    return {**st, "delay_reason": (rel or {}).get("delay_reason"), "recorded_by": base.get("by")}
+
+
+@app.get("/api/cases/{case_id}/closure")
+def get_closure(case_id: str, _=Depends(auth.case_access)):
+    return _closure(case_id) or {"status": "open", "note": "No full repayment recorded."}
+
+
+@app.post("/api/cases/{case_id}/closure")
+def record_closure(case_id: str, b: ClosureBody, user=Depends(auth.require("underwriter", "admin"))):
+    """A lender officer records full repayment and, later, the release of the documents. The 30-day clock and the Rs 5,000 a day compensation follow from the dates."""
+    c = _get_case(case_id)
+    if not c or c.get("erased"):
+        raise HTTPException(404, "case not found")
+    if b.repaid_on > date.today():
+        raise HTTPException(422, "repaid_on cannot be in the future")
+    if b.released_on and b.released_on < b.repaid_on:
+        raise HTTPException(422, "documents cannot be released before the loan is repaid")
+    if not _closure(case_id):
+        eng().audit.append(case_id, "CLOSURE_RECORDED", {"repaid_on": b.repaid_on.isoformat(), "damaged": b.damaged, "collection_place": b.collection_place, "by": user["sub"]})
+    if b.released_on:
+        late = (b.released_on - (b.repaid_on + timedelta(days=60 if b.damaged else 30))).days
+        if late > 0 and not b.delay_reason:
+            raise HTTPException(422, "the documents were released late: record the reason given to the borrower (RBC para 39)")
+        eng().audit.append(case_id, "DOCS_RELEASED", {"released_on": b.released_on.isoformat(), "delay_reason": b.delay_reason, "by": user["sub"]})
+    return _closure(case_id)
+
+
+class AgentBody(BaseModel):
+    name: str = Field(min_length=3, max_length=120)
+    empanelled_from: date
+    empanelled_to: date
+    authorisation_ref: str | None = Field(default=None, max_length=60)
+    police_verification_date: date | None = None
+    iibf_certificate: str | None = Field(default=None, max_length=60)
+    phone: str = Field(min_length=6, max_length=20)
+
+
+def _agents() -> list[dict]:
+    out: dict[str, dict] = {}
+    for x in eng().audit.entries:
+        if x["case_id"] == "SYSTEM" and x["event"] == "RECOVERY_AGENT":
+            out[x["payload"]["name"].lower()] = {**x["payload"], "id": x["hash"][:10]}
+    today = date.today()
+    for a in out.values():
+        a["empanelled_ok"], a["problems"] = servicing.agent_status(a, today)
+    return sorted(out.values(), key=lambda a: a["name"])
+
+
+@app.get("/api/recovery-agents")
+def recovery_agents():
+    """The up-to-date list of recovery agencies, public, as RBC Directions 2025 para 97 requires (name and period of empanelment). Contact details only."""
+    return [{"name": a["name"], "empanelled_from": a["empanelled_from"], "empanelled_to": a["empanelled_to"], "phone": a["phone"], "current": a["empanelled_ok"]} for a in _agents()]
+
+
+@app.post("/api/recovery-agents")
+def add_recovery_agent(b: AgentBody, user=Depends(auth.require("admin"))):
+    if b.empanelled_to < b.empanelled_from:
+        raise HTTPException(422, "the empanelment must end after it starts")
+    eng().audit.append("SYSTEM", "RECOVERY_AGENT", {**{k: (v.isoformat() if isinstance(v, date) else v) for k, v in b.model_dump().items()}, "by": user["sub"]})
+    return recovery_agents()
+
+
+class ContactBody(BaseModel):
+    agent: str = Field(min_length=3, max_length=120)
+    at: datetime
+    channel: Literal["call", "visit", "sms", "letter"]
+    target: Literal["borrower", "guarantor", "relative", "referee", "friend", "employer"]
+    recorded_notice_given: bool = False
+    sensitive_occasion: bool = False
+    summary: str = Field(min_length=3, max_length=400)
+
+
+@app.post("/api/cases/{case_id}/recovery-contact")
+def recovery_contact(case_id: str, b: ContactBody, user=Depends(auth.require("underwriter", "admin"))):
+    """Check a planned or made recovery contact against the rules and keep the record (time, number of contacts and content are documented: HFC para 170(6)(i)(g)).
+    A contact that breaks a rule is refused and the refusal is logged."""
+    if not _get_case(case_id):
+        raise HTTPException(404, "case not found")
+    ag = next((a for a in _agents() if a["name"].lower() == b.agent.strip().lower()), None)
+    day = b.at.astimezone(servicing.IST).date() if b.at.tzinfo else b.at.date()
+    today_n = sum(1 for x in eng().audit.for_case(case_id) if x["event"] == "RECOVERY_CONTACT" and x["payload"].get("local_date") == day.isoformat())
+    res = servicing.check_contact(at=b.at, agent_ok=bool(ag and ag["empanelled_ok"]), agent_problems=(ag or {}).get("problems", ["not on the register"]), target=b.target,
+                                  recorded_notice=b.recorded_notice_given, sensitive_occasion=b.sensitive_occasion, contacts_today=today_n, channel=b.channel)
+    payload = {"agent": b.agent, "channel": b.channel, "target": b.target, "at": b.at.isoformat(), "local_date": day.isoformat(), "summary": b.summary, "by": user["sub"]}
+    if res["allowed"]:
+        e = eng().audit.append(case_id, "RECOVERY_CONTACT", payload)
+    else:
+        e = eng().audit.append(case_id, "RECOVERY_CONTACT_REFUSED", {**payload, "violations": [v["rule"] for v in res["violations"]]})
+    return {**res, "reference": e["hash"][:12], "contacts_that_day": today_n + (1 if res["allowed"] else 0)}
 
 
 @app.get("/api/cases/{case_id}/schedule")
@@ -1031,7 +1293,7 @@ async def ops(request: Request, authorization: str = Header(default="")):
     return {**({"client_ip": getattr(request.state, "ip", None)} if _is_staff(authorization) else {}), "orchestrator": out_orch, "metrics": snap, "monitoring": {"prometheus": prom, "grafana": graf, **({} if anon else {"grafana_url": "http://localhost:3000", "prometheus_url": "http://localhost:9090"})},
             "llm": {"ollama_ready": await asyncio.to_thread(docextract.ollama_available), **({} if anon else {"model": docextract.OLLAMA_MODEL})},
             "versions": {"policy": eng().policy.version, "policy_hash": eng().policy.hash(), "model": eng().risk.version, "engine": config.ENGINE_VERSION}, "audit_entries": eng().audit.count(),
-            "drift": drift_report(), "public_demo": PUBLIC_DEMO}
+            "drift": drift_report(), "public_demo": PUBLIC_DEMO, "storage": db.backend()}
 
 
 # Single-origin hosting: the container image sets GRIHA_STATIC_DIR to the built frontend. In development Vite serves the pages instead.

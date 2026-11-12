@@ -6,7 +6,7 @@ Thanks for looking. Griha is a hackathon project, but fixes and improvements are
 
 ```bash
 git clone https://github.com/anshul23102/griha.git && cd griha
-cd backend && uv sync && uv run pytest -q          # 137 tests
+cd backend && uv sync && uv run pytest -q          # 149 tests
 cd ../frontend && pnpm install && npx tsc -b       # the real typecheck
 ```
 

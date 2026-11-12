@@ -25,7 +25,7 @@ What these say, plainly:
 
 - **Stateless workers.** A worker holds no case data that another cannot rebuild. The audit database is the source of truth; each worker projects it into memory and catches up from it on a cache miss or a list call (`_sync_cases`). Tested: a case made by one worker is served and reviewed by another.
 - **One transactional store.** The audit log and the key vault are SQLite (WAL). An append reads the current head hash inside a `BEGIN IMMEDIATE` transaction, so concurrent writers cannot fork the chain. Case keys are created with an atomic get-or-create, so two workers racing on the same case end up with the same key. Erasure by one worker is seen by all at once.
-- **The honest limit.** SQLite serves workers on one machine. Several machines need Postgres with the same schema (a locked head row in place of `BEGIN IMMEDIATE`). That move is a storage change, not a redesign, but it is not built.
+- **Several machines.** SQLite serves workers on one machine. With `GRIHA_DATABASE_URL=postgresql://...` the same two stores run on PostgreSQL, where an advisory lock replaces `BEGIN IMMEDIATE`. `tests/test_postgres.py` starts a throwaway cluster and checks that two concurrent writers still produce one unbroken hash chain and that tampering is detected. It has not been load-tested: the throughput numbers above are SQLite on one machine.
 - **Durable workflow.** With Temporal the stages run as retried activities on any number of workers (`ops/start.sh`); the hosted demo runs without it.
 
 ## Bugs the load test found (and fixed)

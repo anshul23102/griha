@@ -134,11 +134,12 @@ def build_application(f: IntakeForm, case_id: str, statement: Optional[list[Txn]
         kyc = None
     else:
         scr = sanctions.screen(f.name, f.dob.year)
-        real_hit = any(m["dob_year_consistent"] is not False or m["score"] >= 0.97 for m in scr["matches"])   # a contradicting birth year only downgrades a weaker name match
+        cleared = [m for m in scr["matches"] if m["dob_year_consistent"] is False]      # same name, but the listed birth year contradicts the applicant's: cleared, and recorded
+        real_hit = any(m["dob_year_consistent"] is not False for m in scr["matches"])
         demo_hit = f.name.strip().lower() in WATCHLIST_FIXTURE
         kyc = KycReport(pan_verified=True, aadhaar_verified=True, name_match=1.0, sanctions_hit=real_hit or demo_hit, pep=False,
-                        sanctions_detail={"source": "UN Security Council Consolidated List", "list_date": scr["list_date"], "entries_checked": scr["checked"],
-                                          "matches": scr["matches"], "demo_fixture": demo_hit})
+                        sanctions_detail={"source": "UN, OFAC, EU and UK sanctions lists", "lists": scr["lists"], "list_date": scr["list_date"], "entries_checked": scr["checked"],
+                                          "matches": [m for m in scr["matches"] if m["dob_year_consistent"] is not False], "cleared_on_birth_year": cleared, "demo_fixture": demo_hit})
 
     ph = _h("prop", f.survey_no.upper(), f.pincode)
     pr = np.random.default_rng(ph % (2 ** 32))

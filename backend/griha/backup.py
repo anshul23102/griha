@@ -11,6 +11,8 @@ from __future__ import annotations
 import argparse
 import os
 import sqlite3
+
+from . import db as _db
 import time
 from pathlib import Path
 
@@ -22,6 +24,8 @@ FILES = ("audit.db", "keystore.db")
 def backup(data_dir: Path, dest_root: Path, keep: int = 14) -> Path:
     dest_root.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(dest_root, 0o700)
+    if _db.backend() == "postgresql":
+        raise SystemExit("The audit log and key vault are on PostgreSQL: back them up with pg_dump (and keep the master key separately). This tool copies SQLite files only.")
     now = time.time()
     dest = dest_root / (time.strftime("%Y%m%dT%H%M%S", time.gmtime(now)) + f"-{int(now * 1000) % 1000:03d}")
     dest.mkdir(mode=0o700)

@@ -47,6 +47,8 @@ const Coverage = lazy(() => import('./pages/Coverage'))
 const Sources = lazy(() => import('./pages/Sources'))
 const Privacy = lazy(() => import('./pages/Privacy'))
 const Kfs = lazy(() => import('./pages/Kfs'))
+const Servicing = lazy(() => import('./pages/Servicing'))
+const Vcip = lazy(() => import('./pages/Vcip'))
 function NotFound() {
   const { t } = useI18n()
   useEffect(() => { document.title = '404 | Griha' }, [])
@@ -134,6 +136,8 @@ export default function App() {
           <Route path="/case/:id/letter" element={<Letter />} />
           <Route path="/case/:id/mitc" element={<Mitc />} />
           <Route path="/case/:id/kfs" element={<Kfs />} />
+          <Route path="/case/:id/servicing" element={<Servicing />} />
+          <Route path="/case/:id/vcip" element={<Vcip />} />
           <Route path="/desk" element={<Desk />} />
           <Route path="/simulator" element={<Simulator />} />
           <Route path="/governance" element={<Governance />} />

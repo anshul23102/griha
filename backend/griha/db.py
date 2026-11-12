@@ -9,7 +9,43 @@ import time
 from pathlib import Path
 
 
-def open_db(path: Path | None, schema: str) -> sqlite3.Connection:
+class PgConn:
+    """The few SQLite calls the audit log and the key vault make, mapped onto PostgreSQL, so that GRIHA_DATABASE_URL=postgresql://... switches both stores to Postgres.
+
+    What changes: placeholders (? to %s), INSERT OR IGNORE, REAL to DOUBLE PRECISION in the schema, and BEGIN IMMEDIATE: a transaction that first takes a Postgres
+    advisory lock, which is the same "one writer at a time, across processes and hosts" guarantee SQLite gave through its file lock. Each store still holds its own thread lock
+    around a transaction, because one connection is shared by the request threads of a process."""
+
+    LOCK_KEY = 7_236_001
+
+    def __init__(self, url: str, schema: str):
+        import psycopg                                                    # optional dependency: only needed when a Postgres URL is set
+        self._c = psycopg.connect(url, autocommit=True)
+        for stmt in [x for x in schema.replace("REAL", "DOUBLE PRECISION").split(";") if x.strip()]:
+            self._c.execute(stmt)
+
+    def execute(self, sql: str, params: tuple = ()):
+        q = sql.strip()
+        up = q.upper()
+        if up.startswith("BEGIN"):
+            self._c.execute("BEGIN")
+            self._c.execute("SELECT pg_advisory_xact_lock(%s)", (self.LOCK_KEY,))
+            return None
+        if up in ("COMMIT", "ROLLBACK"):
+            return self._c.execute(q)
+        if up.startswith("INSERT OR IGNORE"):
+            q = "INSERT" + q[len("INSERT OR IGNORE"):] + " ON CONFLICT DO NOTHING"
+        return self._c.execute(q.replace("?", "%s"), params)
+
+
+def backend() -> str:
+    return "postgresql" if os.environ.get("GRIHA_DATABASE_URL", "").startswith(("postgres://", "postgresql://")) else "sqlite"
+
+
+def open_db(path: Path | None, schema: str):
+    url = os.environ.get("GRIHA_DATABASE_URL", "")
+    if url.startswith(("postgres://", "postgresql://")):
+        return PgConn(url, schema)
     if path:
         path.parent.mkdir(parents=True, exist_ok=True)
         os.chmod(path.parent, 0o700)

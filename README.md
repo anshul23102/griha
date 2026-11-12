@@ -12,7 +12,7 @@ Home Loan and Loan Against Property decisions in milliseconds: **approve, reject
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![Temporal](https://img.shields.io/badge/Temporal-workflows-000000)
-![Tests](https://img.shields.io/badge/tests-137%20backend%20%2B%2026%20browser-brightgreen)
+![Tests](https://img.shields.io/badge/tests-149%20backend%20%2B%2029%20browser-brightgreen)
 ![Data](https://img.shields.io/badge/applicant%20data-100%25%20synthetic-orange)
 
 **[Live demo](https://d3l1fg79dbflis.cloudfront.net)** · [Architecture](#architecture) · [Quick start](#quick-start) · [Regulatory coverage](#regulatory-coverage) · [Honest limits](#honest-limits)
@@ -70,7 +70,7 @@ Griha is a working answer to one question: **can an underwriting engine be fast,
 | **Instant decision** | Approve, reject or refer for Home Loan and LAP, with an offer, an interest rate set from the RBI repo rate plus a risk premium, and a counter-offer instead of a flat no |
 | **Policy as code** | 19 rules in a hashed YAML file, traced line by line on every case; a Policy Impact Simulator replays 1,000 stored applications under a changed threshold before it ships |
 | **Risk scoring** | Monotone-constrained LightGBM, isotonic calibration, conformal confidence sets, SHAP drivers, a scorecard band that sets the price |
-| **Fraud and KYC/AML** | Statement arithmetic and tamper checks, round-trips, window dressing, linked-applicant graph, anomaly model, real screening against the UN Security Council Consolidated List, an STR signal |
+| **Fraud and KYC/AML** | Statement arithmetic and tamper checks, round-trips, window dressing, linked-applicant graph, anomaly model, real screening against four sanctions lists (UN, OFAC, EU, UK; about 31,000 entries), an STR signal |
 | **Documents** | Bank statements as PDF, or Account Aggregator data in the ReBIT DEPOSIT FI format (XML or JSON); embedded instructions in a document are treated as evidence of tampering, never as commands |
 | **Property** | Quantile valuation with a range, comparables, circle rate, title and RERA flags, and the HFC Directions' two-valuation-report rule |
 | **Key Facts Statement** | RBI RBC Directions 2025 Annex I layout in **English and Hindi**: proposal number, validity, APR sheet that reproduces the RBI's own worked example (17.07%), amortisation schedule, recorded acknowledgement |
@@ -78,6 +78,9 @@ Griha is a working answer to one question: **can an underwriting engine be fast,
 | **Humans in the loop** | Four refer queues, an SLA timer that escalates and audits, four-eyes approval for fraud overrides |
 | **Governance** | Hash-chained audit log, byte-for-byte replay, tamper detection, per-case encryption with crypto-shredding erasure, model card, drift monitor |
 | **Data rights** | Withdraw consent, access, correct, erase (DPDP), a retention hold where the KYC Directions require records, and a personal-data breach register with the 72-hour clock |
+| **Servicing after sanction** | Quarterly borrower statement (RBC para 31(6)); closing a loan with the 30-day release of original documents and ₹5,000 a day compensation (paras 35 to 41); recovery agents: public empanelment list, contact only in 8:00 a.m. to 7:00 p.m., recorded calls, no persistent calling, every refusal logged (RBC paras 93 to 101, HFC para 170) |
+| **Video KYC (V-CIP)** | The procedure of KYC Directions paras 26 and 27 as a checklist the system enforces: randomised questions, live geo-tag, identification at most three working days old, PAN image, liveness, prompting forces rejection. It does not record video |
+| **Account Aggregator protocol** | FIU side with signed requests (detached RS256 JWS), consent request and approval, signed consent artefact, and FI data decrypted with Curve25519 + HKDF + AES-256-GCM as in Sahamati's reference code, tested against our own mock Aggregator |
 | **Operations** | Temporal durable workflows, Prometheus metrics, a provisioned Grafana dashboard, an Operations page |
 | **Interface** | "The Reservation Chart" design: Indian Railways station signage, English and Hindi, night and day themes, keyboard navigation, accessibility-tested |
 
@@ -89,18 +92,18 @@ Griha is a working answer to one question: **can an underwriting engine be fast,
 
 **Stages.** Data, Income, Property, Eligibility, Policy, Risk, Fraud and Compliance, each writing evidence you can open. Stage code lives in `engine.py`; `workflow.py` and `activities.py` only orchestrate it.
 
-**State.** The audit log and the key vault are SQLite in WAL mode. Each decision is an audit entry holding the *encrypted* input, so the case table is a projection of the log and can be rebuilt after a restart. Several worker processes share one database.
+**State.** The audit log and the key vault are SQLite in WAL mode by default, or PostgreSQL when `GRIHA_DATABASE_URL=postgresql://...` is set (the same hash chain, an advisory lock instead of the SQLite file lock; tested with two concurrent writers, not benchmarked at scale). Each decision is an audit entry holding the *encrypted* input, so the case table is a projection of the log and can be rebuilt after a restart. Several worker processes share one database.
 
 **Human review.** A referred case starts a `ReviewWorkflow` that waits for the officer's decision as a Temporal Update, with an SLA timer.
 
 | Layer | Technology |
 |---|---|
-| Backend | Python 3.11+, FastAPI, Pydantic v2, SQLite (WAL), Temporal, defusedxml |
+| Backend | Python 3.11+, FastAPI, Pydantic v2, SQLite (WAL) or PostgreSQL, Temporal, defusedxml |
 | Models | LightGBM (monotone constraints), scikit-learn (isotonic, isolation forest), SHAP, conformal prediction |
 | Document AI | Deterministic text parser by default; optional local model through a typed Pydantic AI agent |
 | Frontend | React 19, Vite 8, Tailwind CSS v4, TypeScript, React Router, Hind and Azeret Mono fonts |
 | Observability | Prometheus, Grafana (provisioned dashboard), `prometheus-client` |
-| Quality | pytest (137), Playwright with axe accessibility checks (26), bandit, pip-audit, pnpm audit, GitHub Actions |
+| Quality | pytest (149), Playwright with axe accessibility checks (29), bandit, pip-audit, pnpm audit, GitHub Actions |
 | Deployment | One Docker image, Caddy for HTTPS, AWS EC2 |
 
 ## Quick start
@@ -185,6 +188,8 @@ These are demo credentials for synthetic data only. Set `GRIHA_DEMO_PASSWORD` to
 | `GRIHA_DEMO_PASSWORD` | `griha-demo` | Demo officer sign-in password |
 | `GRIHA_ADMIN_PASSWORD` | the demo password locally; **required** on the public demo | Admin sign-in password |
 | `GRIHA_SEED_DEMO` | `1` on the public demo | Run the ten prepared scenarios on first start |
+| `GRIHA_DATABASE_URL` | unset (SQLite) | `postgresql://user@host/db` moves the audit log and key vault to PostgreSQL |
+| `GRIHA_ARTIFACTS_DIR` | `backend/artifacts` | Where the models are loaded from (a lender's own retrained set, see `griha.byod`) |
 
 ## How one decision is made
 
@@ -200,7 +205,7 @@ Data ─▶ Income ─▶ Property ─▶ Eligibility ─▶ Policy ─▶ Risk 
 | **Eligibility** | FOIR at a stress rate, tiered LTV caps (90 / 80 / 75% for housing loans), tenure and ticket limits | A smaller counter-offer replaces a flat no |
 | **Policy** | 19 hashed rules, each with a reason; the engine version and policy hash are stored with the decision | Hard failures reject; soft ones refer |
 | **Risk** | Probability of default with a calibrated range, SHAP drivers, scorecard band, risk-based price | A grey-zone probability, or an uncertain one (a wide upper bound), refers to the **Credit** queue |
-| **Fraud and KYC/AML** | Tamper and behaviour checks, UN list screen, PEP and STR signals | A sanctions match goes to an officer, never an automatic decline, and is hidden from the applicant |
+| **Fraud and KYC/AML** | Tamper and behaviour checks, a four-list sanctions screen, STR signal | A sanctions match goes to an officer, never an automatic decline, and is hidden from the applicant |
 | **Compliance** | 15 controls per case, each with clause and verification status (11 shown to the applicant) | Controls that are *enforced* (for example a sanctions match or high-risk onboarding) route the case to an officer; every control is shown with its status |
 
 **"Humanless" does not mean "no human anywhere".** A clean case is decided with no person involved. A person is involved only where the law requires it (a sanctions match, or a rejection that an officer must record: KYC Directions para 18), where a document or title needs checking, or where predicted risk is in a grey zone. On 1,000 synthetic cases the engine decides 62.5% alone (53.8% approved, 8.7% declined) and refers 37.5%: 25.5% to Credit, 5.1% to Fraud and compliance, 4.9% to Property and 2.0% to Data. The home page shows this breakdown.
@@ -335,9 +340,9 @@ Interactive OpenAPI docs are served at `/docs` (the hosted demo allows the Swagg
 ## Testing and CI
 
 ```bash
-cd backend && uv run pytest -q            # 137 tests; the Temporal tests boot their own dev server and skip if the CLI is absent
+cd backend && uv run pytest -q            # 149 tests; the Temporal tests boot their own dev server and skip if the CLI is absent
 cd frontend && npx tsc -b                 # the real typecheck
-cd frontend && GRIHA_API_LIMIT=5000 ../ops/start.sh && pnpm e2e   # 26 browser tests with axe accessibility checks
+cd frontend && GRIHA_API_LIMIT=5000 ../ops/start.sh && pnpm e2e   # 29 browser tests with axe accessibility checks
 ```
 
 What the tests cover, beyond the obvious: byte-for-byte replay and tamper detection, crypto-shredding, retention deferral, applicant-view redaction, the APR example from the RBI, Annex I structure, Hindi/English parity of the KFS, per-attribute fairness statistics, a real UN-list hit end to end, the breach clock, XML hardening, prompt-injection handling, multi-worker consistency, and a real Temporal server.
@@ -359,11 +364,11 @@ The hosted copy runs in Sydney. A production deployment must keep data in India 
 ```
 backend/
   griha/            engine, stages, policy, risk, fraud, compliance, pricing (+ Hindi KFS), audit, crypto,
-                    sanctions (UN list), aa (ReBIT), docextract, redact, backup, API, Temporal workflow
+                    sanctions (UN, OFAC, EU, UK), aa (ReBIT), aa_fiu + aa_mock (Account Aggregator protocol), servicing, vcip, docextract, redact, backup, API, Temporal workflow
   policy/v1.yaml    19 rules and the regulatory map, hashed into every decision
   artifacts/        trained models, metrics, real-data validation
   tools/            loadtest, validate_public (real data), validate_freddie (local only)
-  tests/            137 tests
+  tests/            149 tests
 frontend/           React app, Playwright e2e and screenshot scripts
 ops/                start/stop scripts, Prometheus and Grafana config, VM deploy script
 docs/               submission deck (Griha-deck.pdf, source in docs/deck), architecture, model card, security, scalability, deploy, data licensing, design spec, video script
@@ -378,7 +383,7 @@ The brief for Problem Statement 2 asks for eight capabilities. The in-app **PS2 
 |---|---|---|
 | 1 | Integrate data sources | Four adapters with channel, time and records per case; PDF and ReBIT Account Aggregator parsing; outage handling |
 | 2 | Eligibility and policy | FOIR and LTV sizing, 19 hashed rules, counter-offers, instant calculator |
-| 3 | Fraud and KYC/AML | `fraud.py`, `sanctions.py` (real UN list), STR signal, entity graph |
+| 3 | Fraud and KYC/AML | `fraud.py`, `sanctions.py` (four real lists), `vcip.py`, STR signal, entity graph |
 | 4 | Risk scoring | `risk.py`: monotone LightGBM, calibration, conformal sets, SHAP, scorecard |
 | 5 | Documents and property | `docextract.py`, `aa.py`, `property.py` |
 | 6 | Compliance checks | `compliance.py` (15 controls per case) and the regulatory map |
@@ -391,14 +396,14 @@ Judging criteria and where each is addressed: accuracy and feasibility (model ca
 
 | Real | Simulated (shaped like the real feed) | Designed for, not built |
 |---|---|---|
-| APR calculation (matches the RBI worked example); KFS in the RBC Annex I layout, English and Hindi; RBI repo rate and NHB RESIDEX figures; UN sanctions screening; ReBIT Account Aggregator file parsing; hash-chained audit; encryption and crypto-shredding; DPDP data-rights flow and breach register | Bureau, KYC and land-record feeds; applicants; the Account Aggregator link itself; property price levels | AA consent flow and FIU signing; OFAC, EU, UK and MHA lists; PEP data; CKYCR upload; video KYC; address confirmation; quarterly borrower statements; document release; recovery-agent rules; Postgres; India-region hosting |
+| APR calculation (matches the RBI worked example); KFS in the RBC Annex I layout, English and Hindi; quarterly statement, 30-day document-release clock with ₹5,000-a-day compensation, recovery-agent calling and conduct rules (RBC and HFC text); sanctions screening on the UN, OFAC, EU and UK lists; the V-CIP procedure as an enforced checklist; the Account Aggregator protocol (signed requests, consent, Curve25519 + HKDF + AES-GCM decryption, as in Sahamati's reference code) and the ReBIT file parser; Postgres as an alternative store; RBI repo rate and NHB RESIDEX figures; hash-chained audit; encryption and crypto-shredding; DPDP data-rights flow and breach register | Bureau, KYC and land-record feeds; applicants; **the Account Aggregator and the bank behind it** (our own mock, so the two halves agree but no real AA has accepted them); the V-CIP video (no video is recorded or stored); property price levels | Registration as an FIU and a connection to a real Aggregator (needs RBI-regulated status and onboarding); CKYCR upload (needs CERSAI access and its non-public specification); the India MHA (UAPA) list (no machine-readable feed); PEP data (licensed); a V-CIP video recorder and liveness model; DSA/DMA agent rules; India-region hosting (the AWS free plan is locked to Sydney) |
 
 ## Honest limits
 
 - **No Indian loan-level data we could use.** (The public sets we found are listed, with reasons, as rejected on the Data sources page.) Accuracy on Indian borrowers is unknown, and the synthetic default rate is several times the real Indian housing NPA ratio (about 0.5% for banks at March 2026, a figure from press reports of the RBI's June 2026 Financial Stability Report that we have not checked against the RBI text). A lender must retrain and re-set the cut-offs on its own loans: `python -m griha.byod --csv book.csv` validates the file, retrains the same monotone calibrated model, reports out-of-sample AUC, KS and calibration, and writes a separate artifact set; the shipped model is never overwritten. A private local check on US mortgage data exists and is deliberately not published, pending the data provider's written confirmation.
 - **Policy cut-offs are illustrative** (FOIR, age, bureau, probability-of-default). The LTV caps are from the HFC Directions. Items only a lender can supply, such as the penal-charge amount, reset frequency and grievance officer, appear as "Lender to state". They are never invented.
 - **Hindi text is unreviewed.** The Hindi KFS and privacy notice were written for this prototype. The DPDP terms follow the Hindi text of the Gazette; the RBI terms are our own choices. [`docs/hindi-review.md`](docs/hindi-review.md) lays every sentence beside its English with a glossary, and the app only stops saying "unreviewed" when a named, qualified reviewer signs `backend/griha/data/hindi_review.json`.
-- **Sanctions coverage is the UN list only.** OFAC, EU, UK and MHA lists and PEP data need a licensed feed.
+- **Sanctions coverage:** the UN, OFAC, EU and UK lists, matched by name with a birth-year check. Not covered: the India MHA (UAPA) list (published as web pages, no machine-readable feed) and PEP data (licensed). A common name that is also on a list goes to an officer.
 - **The breach register tracks the three notices; it does not send them.**
 - **Scale is measured, not proven.** Throughput numbers are from a laptop and a 1 GB server, on bursts and one sustained run.
 - **The hosted demo is in Sydney, in one process.** It carries synthetic data only. The AWS free plan is locked to the region it was created in, so a move to India needs a paid plan or another provider; `docs/deploy.md` has the steps for when one is available.
@@ -410,7 +415,7 @@ The **Data sources** page (`/sources`, `GET /api/sources`) lists every figure th
 
 | Source | Use | Licence |
 |---|---|---|
-| UN Security Council Consolidated List | Sanctions screening (snapshot in `backend/griha/data/`) | Public; refresh with `python -m griha.sanctions --refresh` |
+| UN Security Council, US OFAC, EU and UK sanctions lists | Sanctions screening (compact index in `backend/griha/data/`) | Public files; refresh with `python -m griha.sanctions --refresh` |
 | UCI German Credit (doi:10.24432/C5NC77), Taiwan card default (doi:10.24432/C55S3H) | Real-data validation only; not included in the repository | CC BY 4.0 |
 | RBI and MeitY regulatory texts | Read for the controls; not included in the repository | Public documents |
 | ReBIT Account Aggregator schema | Format of the AA adapter | Public specification |

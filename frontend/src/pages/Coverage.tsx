@@ -52,7 +52,7 @@ export default function Coverage() {
     ['Use of data', 'Bank cash flow, statement forensics, bureau, KYC and sanctions, land and title records, comparable sales, and a linked-applicant graph, all merged per case with lineage.', '/', 'Case evidence'],
     ['Explainability', 'Reasons, evidence folds, scorecard, SHAP drivers, Path to Yes, and a printable decision letter in English or Hindi.', '/', 'Case'],
     ['Regulatory fit', 'Fifteen controls per case with clause and verification status, RBI as the regulator, DPDP-aligned consent and erasure.', '/governance', 'Governance'],
-    ['Scalability', 'Stateless stages, idempotent decisions, one worker measured on this machine, and the worker count for a million cases a day. Queue and database are designed, not built.', '/governance', 'Capacity'],
+    ['Scalability', 'Stateless stages, idempotent decisions, one worker measured on this machine, and the worker count for a million cases a day. The audit log and key vault run on SQLite or PostgreSQL (tested with concurrent writers, not benchmarked).', '/governance', 'Capacity'],
     ['Clarity of presentation', 'This page, a four-minute demo script, an architecture diagram, a deck and a live demo on the home page.', '/', 'Home'],
   ]
   const api_rows: [string, string, string][] = [

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, UploadSimple, PaperPlaneTilt } from '@phosphor-icons/react'
+import AaLink from '../components/AaLink'
 import { api, apiForm, ApiError, lakh, type J } from '../api'
 import { useI18n } from '../i18n'
 import { Board, Btn, Field, inputCls, Notice, RouteStrip, Sheet, Spinner, type StationState } from '../components/kit'
@@ -188,6 +189,7 @@ export default function Apply() {
                   </div>
                 ) : (
                   <div className="sm:col-span-2 grid gap-3">
+                    <AaLink name={String(f.name)} phone={String(f.phone)} onDoc={d => { setDoc(d); setErrors(p => { const { document_id: _, ...r } = p; return r }) }} />
                     <Field id="document_id" label={t('ap.pdf')} hint={t('ap.pdf.hint')} error={errors.document_id}>
                       <input id="document_id" type="file" accept="application/pdf,application/json,application/xml,text/xml,.json,.xml" onChange={e => e.target.files?.[0] && upload(e.target.files[0])} className={inputCls(errors.document_id) + ' py-2'} />
                     </Field>

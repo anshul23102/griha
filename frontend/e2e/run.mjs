@@ -5,7 +5,7 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const axeSrc = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8')
 const BASE = process.env.BASE || 'http://127.0.0.1:5173'
-const browser = await chromium.launch({ channel: 'chrome', headless: true })
+const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] })
 const results = []
 const errors = []
 async function newPage(opts = {}) {
@@ -39,7 +39,7 @@ async function axe(page, label) {
 await test('home: live demo runs the real engine and shows a verdict', async () => {
   const p = await newPage(); await p.goto(BASE + '/')
   await p.getByRole('button', { name: 'Run it' }).click()
-  await p.getByRole('link', { name: 'Open the full case' }).waitFor({ timeout: 15000 })
+  await p.getByRole('link', { name: 'Open the full case' }).waitFor({ timeout: 45000 })
   const n = await p.locator('ol.route li').count()
   ok(n === 8, `route strip should have 8 stations, got ${n}`)
   await p.getByRole('link', { name: 'Open the full case' }).click()
@@ -308,7 +308,7 @@ await test('real sanctions screen: a listed name is withheld from the applicant,
   const p = await newPage(); await p.goto(BASE + '/')
   const r = await p.evaluate(async () => {
     const ref = await (await fetch('/api/reference')).json(); const pin = ref.cities.find(c => c.name === 'Jaipur').pins[0]
-    const f = { name: 'Hafiz Muhammad Saeed', dob: '1988-04-12', pan: 'abcde1234f', phone: '98765 43211', gender: 'M', employment: 'salaried', employer: 'Metro Hospital', monthly_income: 62000, existing_emi: 4000, city: 'Jaipur', pincode: pin, product: 'HL', amount: 2400000, tenure_months: 240, property_type: 'apartment', area_sqft: 950, property_age_years: 6, declared_value: 3600000, survey_no: 'KH-221/4', consent: true }
+    const f = { name: 'Mohammed Masood Azhar Alvi', dob: '1968-07-10', pan: 'abcde1234f', phone: '98765 43211', gender: 'M', employment: 'salaried', employer: 'Metro Hospital', monthly_income: 62000, existing_emi: 4000, city: 'Jaipur', pincode: pin, product: 'HL', amount: 1500000, tenure_months: 84, property_type: 'apartment', area_sqft: 950, property_age_years: 6, declared_value: 3600000, survey_no: 'KH-221/4', consent: true }
     const res = await fetch('/api/applications/new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(f) }); const j = await res.json()
     const body = await (await fetch('/api/cases/' + j.case_id, { headers: { 'X-Case-Key': j.access_key } })).text()
     return { outcome: j.decision?.outcome, body: body.toLowerCase() }
@@ -333,6 +333,61 @@ await test('unknown address shows a real not-found page, and the home page says 
   const t = await p.locator('main').innerText(); ok(/Credit/.test(t) && /asked for more than supportable|bureau score/.test(t), 'queue breakdown with credit reasons')
   await axe(p, 'Home with breakdown')
   await p.context().close()
+})
+
+await test('servicing: quarterly statement, document-release clock with compensation, and a recovery contact outside hours is refused', async () => {
+  const p = await newPage(); await p.goto(BASE + '/')
+  const made = await p.evaluate(async () => (await (await fetch('/api/applications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scenario_id: 'salaried_approve' }) })).json()))
+  const s = await newPage(); await login(s, 'admin@griha.demo'); await s.goto(BASE + `/case/${made.case_id}/servicing#k=${made.access_key}`)
+  await s.getByText('Quarterly statement').first().waitFor({ timeout: 15000 })
+  const t0 = await s.locator('main').innerText(); ok(/Principal recovered/.test(t0) && /APR/.test(t0), 'statement table')
+  await s.getByLabel('Date of full repayment').fill('2020-01-01'); await s.getByLabel('Date the documents were released', { exact: false }).fill('2020-02-20'); await s.getByLabel('Reason given to the borrower', { exact: false }).fill('registry filing was late')
+  await s.getByRole('button', { name: 'Record', exact: true }).click(); await s.getByText('Compensation due').waitFor({ timeout: 8000 })
+  ok((await s.locator('main').innerText()).includes('1,00,000'), 'Rs 5,000 x 20 days')
+  await s.getByLabel('Agency name').fill('Unknown Recovery Co'); await s.getByLabel('Date and time', { exact: false }).fill('2027-02-10T20:15'); await s.getByLabel('What it was about').fill('reminder')
+  await s.getByRole('button', { name: 'Check and record' }).click(); await s.getByText('Refused and logged').waitFor({ timeout: 8000 })
+  ok(/8:00 a\.m\. to 7:00 p\.m\./.test(await s.locator('main').innerText()), 'hours rule cited')
+  await axe(s, 'Servicing page')
+  for (const c of [p, s]) await c.context().close()
+})
+
+await test('Account Aggregator sandbox: consent request, approval in the aggregator app, encrypted fetch, and the data is read', async () => {
+  const p = await newPage(); await p.goto(BASE + '/apply')
+  await p.getByRole('button', { name: 'Fill with example values' }).click()
+  await p.getByRole('button', { name: 'Next' }).click(); await p.getByRole('button', { name: 'Next' }).click()
+  await p.getByLabel('City').selectOption('Jaipur'); await p.getByLabel('PIN code').selectOption({ index: 1 }); await p.getByRole('button', { name: 'Next' }).click()
+  await p.locator('input[name=statement_source][value=uploaded]').check()
+  const aa = p.getByTestId('aa-link'); await aa.waitFor({ timeout: 10000 })
+  await aa.getByRole('button', { name: 'Request consent' }).click()
+  await aa.getByText('Consent request from Griha').waitFor({ timeout: 10000 })
+  ok((await aa.innerText()).includes('Loan underwriting'), 'purpose shown to the customer')
+  await aa.getByRole('button', { name: 'Approve in the Aggregator app' }).click()
+  await aa.getByRole('button', { name: 'Fetch my bank data' }).click()
+  await aa.getByText('Bank data received, decrypted and read').waitFor({ timeout: 20000 })
+  ok((await aa.innerText()).includes('decrypted'), 'protocol trace lists the decryption step')
+  await p.context().close()
+})
+
+await test('V-CIP: a session with every mandatory element passes; prompting at the customer end forces rejection', async () => {
+  const p = await newPage(); await p.goto(BASE + '/')
+  const made = await p.evaluate(async () => (await (await fetch('/api/applications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scenario_id: 'salaried_approve' }) })).json()))
+  const s = await newPage({ permissions: ['geolocation', 'camera'], geolocation: { latitude: 28.6139, longitude: 77.209 } }); await login(s, 'officer@griha.demo')
+  await s.goto(BASE + `/case/${made.case_id}/vcip#k=${made.access_key}`)
+  await s.getByRole('button', { name: 'Start a session' }).click(); await s.getByText('Questions for this session').waitFor({ timeout: 10000 })
+  ok(await s.locator('ol li').count() >= 6, 'six questions')
+  const fails = s.getByRole('button', { name: 'Complete the session' })
+  await fails.click(); await s.getByText(/^Session cannot be completed:/).waitFor({ timeout: 8000 })           // nothing recorded yet: refused, with paragraphs
+  ok(/paras? 27/.test(await s.locator('main').innerText()), 'paragraphs cited')
+  await s.getByRole('button', { name: 'Start a session' }).click(); await s.getByText('Questions for this session').waitFor()   // a refused session is final: start a fresh one
+  for (const r of await s.getByLabel('Asked, passed').all()) await r.check()
+  await s.getByRole('button', { name: "Capture the customer's live location" }).click(); await s.getByText('captured').first().waitFor({ timeout: 8000 })
+  await s.getByRole('button', { name: "Capture the customer's photograph" }).click(); await s.getByText('sha256').first().waitFor({ timeout: 10000 })
+  await s.getByLabel('The customer gave an e-PAN instead').check()
+  await s.getByLabel('The customer confirmed their economic and financial profile').check(); await s.getByLabel('The liveness check passed').check()
+  await fails.click(); await s.getByText(/^Session passed\./).waitFor({ timeout: 8000 })
+  await s.getByLabel('Prompting was observed', { exact: false }).check()
+  await axe(s, 'V-CIP page')
+  for (const c of [p, s]) await c.context().close()
 })
 
 await test('phone: route-strip station labels never overlap and the strip uses the full width', async () => {

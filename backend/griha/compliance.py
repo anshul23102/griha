@@ -22,8 +22,8 @@ def evaluate(app: ApplicationInput, *, outcome: str, refer_queue: str | None, of
         "PAN verified and Aadhaar e-KYC completed" if kyc_ok else "KYC incomplete: referred to an officer, who may accept another officially valid document (Aadhaar is voluntary) and must record the reason for any rejection")
     hit = bool(k and k.sanctions_hit)
     add("AML", "Sanctions and PEP screening; applicant is not told of a match", "NBFC KYC Directions 2025 paras 17(1), 17(9), 19, 20(4), 45, 52, 54", "verified", "enforced" if hit else "met",
-        "Possible match on the UN consolidated list (or the demo fixture): referred to the compliance officer, withheld from the applicant's view" if hit else
-        f"Screened against the UN Security Council Consolidated List (snapshot {(k.sanctions_detail or {}).get('list_date', '')[:10] if k else ''}), no match{' (PEP: senior-management approval and source-of-funds check needed, para 45)' if k and k.pep else ''}. Not covered: OFAC, EU, UK and the MHA UAPA list, and PEP data, which need a licensed feed")
+        "Possible match on a UN, OFAC, EU or UK sanctions list (or the demo fixture): referred to the compliance officer, withheld from the applicant's view" if hit else
+        f"Screened against the UN, OFAC, EU and UK sanctions lists (snapshots {(k.sanctions_detail or {}).get('list_date', '') if k else ''}), no match{' (PEP: senior-management approval and source-of-funds check needed, para 45)' if k and k.pep else ''}. Not covered: the MHA UAPA list (no machine-readable feed) and PEP data (licensed)")
     add("EDD", "Online application treated as non-face-to-face: customer rated high-risk, enhanced checks", "NBFC KYC Directions 2025 para 44(4) to (6); para 20(4)", "verified", "enforced",
         "Customer risk category: HIGH until identity is confirmed face to face or by V-CIP (para 44(6)). Not shown to the applicant. Still to do by the lender: positive confirmation of the current address (44(3))")
     add("STR", "Suspicious-transaction reporting signal; its existence is confidential", "NBFC KYC Directions 2025 paras 49 to 53; PMLA", "verified", "enforced" if str_recommended else "met",
